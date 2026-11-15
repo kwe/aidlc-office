@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.25.12",
-    "puppeteer-core": "^24.43.1",
+    "puppeteer-core": "^25.17.0",
     "three": "^0.170.0"
   }
 }
