@@ -16,6 +16,15 @@ embedded in the file. A window at least 1200px wide gives the office the most ro
 - Choose a seat (Product Owner, Engineering Lead, Delivery Manager, SRE, Security) and a scope (Express, Feature,
   Enterprise). A Feature run takes about 30 minutes; Express about 10.
 
+### Take the tour first
+
+The first time you enter the office, a 13-step guided tour walks you round it: the Conductor, the fourteen agents and what
+each one carries, the five humans, the approval gate, the sensors, the record wall, the swarm pods and the incident. Use
+`←` `→` to step and `Esc` to skip. Replay it any time from **Take the tour** on the title screen or **Office tour** on the
+setup screen.
+
+![The office tour introducing the eleven domain experts, each labelled on its dock](docs/screenshots/tour.jpg)
+
 ## What you do
 
 ### Predict who leads each stage
@@ -115,6 +124,7 @@ and `PROFILES` (the scope switches, mirroring `core/scopes/aidlc-{express,featur
   `auto=hot` best answers except a hot-partition store that is never fixed
 - `role` = `po` `eng` `pm` `ops` `sec` · `prof` = `express` `feature` `enterprise`
 - `motion=0` reduced motion · `hold=boss` stop at the incident · `slow=3.5` play one stage at normal speed
+- `tour=1` opens the office tour directly; add `tourstep=4` to start at a given step
 
 ## Third-party
 

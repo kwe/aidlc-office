@@ -8,7 +8,7 @@
     "screenshots": "node tools/screenshots.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.25.12",
     "puppeteer-core": "^24.43.1",
     "three": "^0.170.0"
   }

@@ -40,7 +40,7 @@ export function create(o) {
 
   // state
   const mezzLight = new THREE.PointLight(0xffe2b8, 34, 16, 2); mezzLight.position.set(0, 3.4, -9.6); scene.add(mezzLight);
-  let hemiBase = 1.7, lastDpr = 0, lastPh = -1;
+  let hemiBase = 1.7, lastDpr = 0, lastPh = -1, spots = null;
   let ready = false, mode = 'title', W = 1, H = 1, T = 0, last = performance.now(), lastRender = 0, dirty = true, light = false;
   const C = {}, anchors = {}, mats = {}, bots = {}, humans = {}, sensors = [], drones = [], packets = [], rings = [], beams = [], arcs = [], pods = [];
   let stage = null, cnd = null, storm = null, gateArm = null, gateS = 0, gateRole = null, gateT = 0, gateHuman = null, alertOn = false, hover = null, candidates = null;
@@ -179,14 +179,16 @@ export function create(o) {
   /* ------------------------------------------------------------------ camera */
   const VIEWS = {
     title: { tgt: [0, .4, .5], az: .5, pol: .98, r: 17.5 },
-    hub: { tgt: [0, .8, 0], az: .38, pol: .98, r: 9 }, docks: { tgt: [0, .7, .4], az: .4, pol: .86, r: 7.6 },
+    hub: { tgt: [0, .8, 0], az: .38, pol: .98, r: 9 }, core: { tgt: [0, 1.2, 0], az: .3, pol: 1.1, r: 4.6 },
+    floor: { tgt: [0, .4, .4], az: .42, pol: .86, r: 15.2 }, ring: { tgt: [0, .7, .3], az: .36, pol: .66, r: 6.3 },
+    mezz: { tgt: [0, 1.5, -10.4], az: .22, pol: 1.2, r: 5.4 }, vault: { tgt: [-14.6, 1.7, -.2], az: 1.12, pol: 1.12, r: 4.8 }, board: { tgt: [0, 3.2, -11.5], az: .12, pol: 1.32, r: 6.2 }, docks: { tgt: [0, .7, .4], az: .4, pol: .86, r: 7.6 },
     all: { tgt: [0, .4, .8], az: .42, pol: .9, r: 18.5 },
     room1: { az: .5, pol: .97, r: 6.9 }, room2: { az: -.42, pol: .97, r: 6.9 }, room3: { az: -.5, pol: .9, r: 7.2 }, room4: { az: .55, pol: .9, r: 7.2 },
     gate: { az: .2, pol: 1.16, r: 5.6 }, pods: { tgt: [12.4, 1.0, 6.4], az: -.3, pol: .95, r: 6.4 }, ops: { az: .55, pol: 1.02, r: 7.4 },
   };
   let view = 'title';
   function focus(name, force) {
-    view = name; const v = VIEWS[name] || VIEWS.all;
+    view = name; if (!ready) return; const v = VIEWS[name] || VIEWS.all;
     if (cam.userT > 0 && !force) return;
     cam.d.az = v.az; cam.d.pol = v.pol; cam.d.r = v.r;
     if (v.tgt) cam.d.tgt.set(...v.tgt);
@@ -223,11 +225,11 @@ export function create(o) {
   }
   function bindInput(el) {
     let drag = null;
-    el.addEventListener('pointerdown', e => { if (e.button !== 0 || e.target.closest('button,a,.stagecard,.glass')) return; drag = { x: e.clientX, y: e.clientY, az: cam.d.az, pol: cam.d.pol, moved: false }; });
+    el.addEventListener('pointerdown', e => { if (e.button !== 0 || e.target.closest('button,a,.stagecard,.glass,.tourcard')) return; drag = { x: e.clientX, y: e.clientY, az: cam.d.az, pol: cam.d.pol, moved: false }; });
     addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true; if (!drag.moved) return; cam.d.az = clamp(drag.az - dx * .004, -1.25, 1.35); cam.d.pol = clamp(drag.pol - dy * .0035, .35, 1.32); cam.userT = 9; dirty = true; });
     addEventListener('pointerup', () => { if (drag && drag.moved) api.dragged = performance.now(); drag = null; });
-    el.addEventListener('wheel', e => { if (e.target.closest('.stagecard')) return; e.preventDefault(); cam.zoom = clamp((cam.zoom || 1) * (e.deltaY > 0 ? 1.1 : .9), .35, 1.6); cam.userT = 9; dirty = true; }, { passive: false });
-    el.addEventListener('dblclick', e => { if (e.target.closest('button,.stagecard')) return; cam.zoom = 1; cam.userT = 0; focus(view, true); });
+    el.addEventListener('wheel', e => { if (e.target.closest('.stagecard,.tourcard')) return; e.preventDefault(); cam.zoom = clamp((cam.zoom || 1) * (e.deltaY > 0 ? 1.1 : .9), .35, 1.6); cam.userT = 9; dirty = true; }, { passive: false });
+    el.addEventListener('dblclick', e => { if (e.target.closest('button,.stagecard,.tourcard')) return; cam.zoom = 1; cam.userT = 0; focus(view, true); });
   }
 
   /* ------------------------------------------------------------------ modes + stages */
@@ -248,7 +250,10 @@ export function create(o) {
     sensors.forEach(s => s.s = 0); gateS = 0; gateRole = null; alert(false);
     Object.values(bots).forEach(b => { b.role = null; b.job = 'home'; b.place(b.home.p, b.yaw); b.face(V(0, 0, 0)); b.setMood(m === 'title' ? 'idle' : 'sleep'); });
     Object.values(humans).forEach(h => { h.role = null; h.me = false; h.place(h.desk.p, 0); h.setMood('work'); });
-    if (m === 'game') { binderN = 0; binders.count = 0; binders.userData.born = []; drawSign(vaultS, 'aidlc/ · 0 artifacts', C.violet || '#A98BFF'); const me = humans[st().role]; if (me) me.me = true;
+    spots = null;
+    if (m !== 'title') { binderN = 0; binders.count = 0; binders.userData.born = []; drawSign(vaultS, 'aidlc/ · 0 artifacts', C.violet || '#A98BFF'); }
+    if (m === 'tour') Object.values(bots).forEach(b => b.setMood('idle'));
+    if (m === 'game') { const me = humans[st().role]; if (me) me.me = true;
       order.forEach((k, i) => setTimeout(() => { if (mode === 'game' && bots[k].job === 'home') { bots[k].setMood('boot', .9); bots[k].pulse = 1; } }, 150 + i * 90)); }
     cam.userT = 0; cam.zoom = 1; focus(m === 'title' ? 'title' : 'all', true); layout(); idleT = 1.5;
   }
@@ -381,12 +386,29 @@ export function create(o) {
     m.position.copy(A).addScaledVector(d, .5); m.quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize()); scene.add(m); beams.push({ m, t: 0 });
   }
   function noc(d) { if (!alertOn) nocData = d || {}; nocT = 0; dirty = true; }
+  function spot(keys) { spots = keys && keys.length ? keys : null; dirty = true; }
+  // Put the office back to rest between tour steps without teleporting anyone.
+  function tourReset() {
+    if (!ready) return;
+    spots = null; candidates = null; stage = null; lastPh = -1;
+    packets.forEach(p => { scene.remove(p.s); p.s.material.dispose(); }); packets.length = 0;
+    arcs.forEach(a => { (a.beads || []).forEach(b => { scene.remove(b.s); b.s.material.dispose(); }); killArc(a); }); arcs.length = 0;
+    drones.forEach(d => { scene.remove(d.g); d.label && d.label.e.remove(); }); drones.length = 0; pods.forEach((p, i) => podMats[i] && (podMats[i].emissiveIntensity = .6));
+    sensors.forEach(x => x.s = 0);
+    if (alertOn) alert(false);
+    gateS = 0; if (gateHuman) returnHuman(gateHuman);
+    roomLights.forEach(l => l.userData.on = false);
+    order.forEach(k => { const b = bots[k]; b.role = null; if (b.job !== 'home' || b.moving) sendHome(b, 'idle'); else b.setMood('idle'); });
+    Object.values(humans).forEach(h => h.setMood('work'));
+    if (hubMat) { hubMat.emissive.set(C.cyan); hubLight.color.set(C.cyan); }
+    dirty = true;
+  }
   function setCandidates(keys) { candidates = keys && keys.length ? keys : null; dirty = true; }
 
   /* ------------------------------------------------------------------ idle life */
   const POI = [['coffee', '☕'], ['arcade', '🎮'], ['cooler', '💧'], ['vault_in', '📚'], ['front', '🧹']];
   function idleLife(dt) {
-    idleT -= dt; if (idleT > 0 || alertOn) return; idleT = mode === 'title' ? 2.2 + Math.random() * 2 : 5 + Math.random() * 6;
+    idleT -= dt; if (idleT > 0 || alertOn || mode === 'tour') return;   // nobody wanders off while the tour is pointing at them idleT = mode === 'title' ? 2.2 + Math.random() * 2 : 5 + Math.random() * 6;
     const out = order.filter(k => bots[k].job === 'wander').length, max = mode === 'title' ? 5 : 2;
     const free = order.filter(k => bots[k].job === 'home' && !bots[k].moving && !bots[k].role && !(candidates && candidates.includes(k)));
     if (out >= max || !free.length) return;
@@ -427,7 +449,7 @@ export function create(o) {
     // roomba
     if (!snap) { const r = roomba; if (r.wait > 0) r.wait -= dt; else { const d = tmp.subVectors(r.tgt, r.g.position); d.y = 0; const L = d.length(); if (L < .2) { r.tgt.set(Math.random() * 9 - 4.5, 0, 7 + Math.random() * 4.5); r.wait = .6; } else { r.g.position.addScaledVector(d, Math.min(1, 1.1 * dt / L)); r.g.rotation.y = damp(r.g.rotation.y, Math.atan2(d.x, d.z), 4, dt); } } }
     // room + alarm lights
-    roomLights.forEach(l => l.intensity = damp(l.intensity, l.userData.base * (l.userData.on ? 1.5 : mode === 'title' ? 1 : .6) * (alertOn ? .35 : 1), 3, dt));
+    roomLights.forEach(l => l.intensity = damp(l.intensity, l.userData.base * (l.userData.on ? 1.5 : mode === 'game' ? .6 : 1) * (alertOn ? .35 : 1), 3, dt));
     const al = alertOn ? 1 : 0; alarmLight.intensity = damp(alarmLight.intensity, al * 900, 4, dt);
     alarmLight.target.position.set(alarmLight.position.x + Math.cos(T * 4) * 8, 0, alarmLight.position.z + Math.sin(T * 4) * 8);
     if (mats.m_beacon) mats.m_beacon.emissiveIntensity = alertOn ? 3 + Math.sin(T * 12) * 2.5 : .3;
@@ -471,13 +493,15 @@ export function create(o) {
     camStep(dt, snap);
     // labels
     for (const k of order) { const b = bots[k], L = b.label; if (L.bubT > 0) L.bubT -= dt; const cand = candidates && candidates.includes(k);
-      const show = !!b.role || hover === k || cand || L.bubT > 0 || (mode === 'title' && b.job === 'wander') || (alertOn && b.job === 'war' && b.pulse > 0);
-      L.tg.textContent = cand ? 'PICK?' : b.role === 'lead' ? 'LEAD' : b.role === 'col' ? 'SUPPORT' : b.role === 'rev' ? 'REVIEW' : ''; L.e.classList.toggle('bub', L.bubT > 0); L.e.classList.toggle('cand', !!cand);
+      const sp = spots && spots.includes(k);
+      const show = !!b.role || hover === k || cand || sp || L.bubT > 0 || (mode === 'title' && b.job === 'wander') || (alertOn && b.job === 'war' && b.pulse > 0);
+      L.tg.textContent = cand ? 'PICK?' : b.role === 'lead' ? 'LEAD' : b.role === 'col' ? 'SUPPORT' : b.role === 'rev' ? 'REVIEW' : sp ? (agents[k].k === 'r' ? 'REVIEWER' : agents[k].k === 's' ? 'SUPPORT ONLY' : agents[k].k === 'c' ? 'COMPOSER' : '') : '';
+      if (sp && b.mood === 'sleep') b.setMood('idle', .5); L.e.classList.toggle('bub', L.bubT > 0); L.e.classList.toggle('cand', !!cand);
       if (cand) { b.ringCol.set('#ffffff'); b.ringA = Math.max(b.ringA, .8); if (b.mood === 'sleep') b.setMood('idle', .5); }
       project(b.headPos(tmp2), L, show); }
-    for (const k of roles) { const h = humans[k], L = h.label; if (L.bubT > 0) L.bubT -= dt; L.tg.textContent = h.role === 'gate' ? 'GATE' : h.me ? 'YOU' : ''; L.e.classList.toggle('bub', L.bubT > 0); project(h.headPos(tmp2), L, mode === 'game' && (!!h.role || h.me || hover === '@' + k || L.bubT > 0)); }
-    { const L = cnd.label; if (L.bubT > 0) L.bubT -= dt; L.e.classList.toggle('bub', L.bubT > 0); project(tmp2.set(0, 2.9, 0), L, hover === 'CND' || L.bubT > 0 || (stage && stage.ph === 0 && mode === 'game')); L.tg.textContent = stage && stage.ph === 0 ? 'ENGINE' : ''; }
-    sensors.forEach((x, i) => project(tmp2.copy(x.g.position).setY(1.45), x.label, mode === 'game' && (hover === 'SENS:' + i || x.s === 1 || x.s === 3)));
+    for (const k of roles) { const h = humans[k], L = h.label; if (L.bubT > 0) L.bubT -= dt; const sp = spots && spots.includes('@' + k); L.tg.textContent = h.role === 'gate' ? 'GATE' : h.me ? 'YOU' : sp ? people[k].t.toUpperCase() : ''; L.e.classList.toggle('bub', L.bubT > 0); project(h.headPos(tmp2), L, mode !== 'title' && (!!h.role || h.me || sp || hover === '@' + k || L.bubT > 0)); }
+    { const L = cnd.label; if (L.bubT > 0) L.bubT -= dt; L.e.classList.toggle('bub', L.bubT > 0); project(tmp2.set(0, 2.9, 0), L, hover === 'CND' || L.bubT > 0 || (spots && spots.includes('CND')) || (stage && stage.ph === 0 && mode === 'game')); L.tg.textContent = stage && stage.ph === 0 ? 'ENGINE' : ''; }
+    sensors.forEach((x, i) => project(tmp2.copy(x.g.position).setY(1.45), x.label, mode !== 'title' && (hover === 'SENS:' + i || x.s === 1 || x.s === 3 || (spots && spots.includes('SENS')))));
     drones.forEach(d => d.label && project(d.headPos(tmp2), d.label, true));
   }
   function frame(now) {
@@ -504,7 +528,7 @@ export function create(o) {
 
   const api = {
     start() { colors(); layout(); addEventListener('resize', layout); requestAnimationFrame(frame); if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { colors(); boardT = 0; }); },
-    layout, colors, setMode, setStage, pulse, packet, sensor, gate, vaultHit, swarm, alert, celebrate, speak, humanMood, roleMood, boss, cast, noc, setCandidates, hit, bindInput, focus,
+    layout, colors, setMode, setStage, pulse, packet, sensor, gate, vaultHit, swarm, alert, celebrate, speak, humanMood, roleMood, boss, cast, noc, setCandidates, hit, bindInput, focus, spot, tourReset,
     loopback: (a, b, label) => arc(a, b, C.mag, label || 'backward jump', 3.4),
     feedback: () => { arc('ROOM:4', 'ROOM:1', C.lime, 'feedback → next intent', 6); if (st().motion) for (let i = 0; i < 6; i++) setTimeout(() => packet('OPS', 'PRD', C.lime, .7), i * 260); },
     setHover(k) { if (k !== hover) { hover = k; dirty = true; } },
