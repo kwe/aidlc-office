@@ -1,8 +1,8 @@
 # AI-DLC Mission Control: The Office
 
-A single-file browser game that walks one intent through the AWS AI-Driven Development Life Cycle (AI-DLC) v2, from idea
-to production and back again, inside a 3D office. Fourteen AI agents work the floor, five humans approve their work at
-every gate, and then the quarter-end surge hits production.
+A single-file browser game that walks a piece of work through the AWS AI-Driven Development Life Cycle (AI-DLC) v2, from
+idea to production and back again, inside a 3D office. Fourteen AI agents work the floor, five humans approve their work
+at every gate, and then production pushes back. There are six scenarios to play, and each suits different AI-DLC scopes.
 
 ![Title screen: the office at night with the fourteen agent bots around the Conductor](docs/screenshots/title.jpg)
 
@@ -13,8 +13,8 @@ embedded in the file. A window at least 1200px wide gives the office the most ro
 
 - **Mouse:** drag to orbit the office, scroll to zoom, double-click to reset the view, hover anyone to see who they are.
 - **Keys:** `1`–`4` pick an option, `A` approve, `R` request changes, `Space` skip waiting, `M` sound on/off.
-- Choose a seat (Product Owner, Engineering Lead, Delivery Manager, SRE, Security) and one of the 11 scopes. A Feature
-  run takes about 30 minutes; the short scopes take 5 to 10.
+- Choose the work, a scope for it, and a seat (Product Owner, Engineering Lead, Delivery Manager, SRE, Security).
+  Network Velocity under the Feature scope takes about 30 minutes; the bug, patch and refactor take about 10.
 
 ### Take the tour first
 
@@ -25,13 +25,28 @@ setup screen.
 
 ![The office tour introducing the eleven domain experts, each labelled on its dock](docs/screenshots/tour.jpg)
 
-### Pick a scope
+### Pick the work, then a scope for it
 
-All 11 shipped AI-DLC scopes are playable. A scope is a stage list plus ceremony switches (sensors, reviewers, plan
-approval, walking skeleton, collaborators). Every scope runs the same intent, so you can compare what each one keeps,
-what it drops, and what that costs you when the surge arrives.
+Six pieces of work land on the Aegle API Team. Each one offers only the scopes that could plausibly run it, with the
+game's verdict on each: best fit, workable or poor fit. A poor fit is allowed. Whatever the scope skips comes back later,
+usually in the incident.
 
-![The scope picker with all eleven scopes, their stage maps and ceremony switches](docs/screenshots/scopes.jpg)
+![The scenario picker with six pieces of work, and the three scopes offered for the security advisory](docs/screenshots/scenarios.jpg)
+
+| Scenario | What lands on the team | Best fit | Also offered |
+|---|---|---|---|
+| **Network Velocity** | A new capability: warn lenders when one identity is used across many lenders. | `feature` | `enterprise`, `workshop`, `classic`, `express` |
+| **Aegle Starter** | A new product: a self-serve tier nobody is yet sure small lenders want. | `mvp` | `classic`, `poc` |
+| **The Retry Bug** | A production bug: retries from one lender are counted as other lenders. | `bugfix` | `refactor`, `express` |
+| **Advisory AEG-SEC-014** | A security advisory: a leaked credential could use the fingerprint key. | `security-patch` | `bugfix`, `express` |
+| **The Reasons Pipeline** | A refactor: pull 640 lines of merging code apart without changing a response. | `refactor` | `bugfix`, `express` |
+| **The Second Region** | An infrastructure change: survive the loss of an AWS region. | `infra` | `express` |
+
+Every scenario has its own questions, artifacts, planted sensor failure, loop-back, incident and debrief. The stories
+share one team and one product, and they follow on from each other: the bug is in what Network Velocity shipped.
+
+All 11 shipped scopes appear somewhere. A scope is a stage list plus ceremony switches (sensors, reviewers, plan approval,
+walking skeleton, collaborators):
 
 | Scope | Stages | What it is |
 |---|---|---|
@@ -47,14 +62,15 @@ what it drops, and what that costs you when the surge arrives.
 | `bugfix` | 9 | Scan, requirements, fix, test, deploy. |
 | `poc` | 8 | Intent, scan, requirements, code and tests. It never deploys. |
 
-Scopes that stop before Deployment Execution (`mvp`, `classic`, `poc`) still meet quarter end: the team ships by hand,
-with nothing in Operation designed.
+When a scope skips a stage the work turns out to need, a gate can pull it back in ("Approve, and add NFR Requirements
+next"). Scopes that stop before Deployment Execution (`mvp`, `classic`, `poc`) still meet real users: the team ships by
+hand, with nothing in Operation designed.
 
 ## What you do
 
 ### Predict who leads each stage
 
-Each of the 33 stages has one lead agent. Guess it from the card, or click the bot itself in the office.
+Each stage has one lead agent. Guess it from the card, or click the bot itself in the office.
 
 ![Predicting the lead agent for Intent Capture, with three candidate bots tagged in the office](docs/screenshots/predict.jpg)
 
@@ -81,14 +97,20 @@ Each one gets a drone in a worktree pod.
 
 ### Survive the incident
 
-At quarter end the surge arrives as a storm over the Operations room. Your loadout is whatever you approved earlier:
-skipped Domain Design means a hot partition, and no feature-flag practice means no way to switch off one segment.
+Every scenario ends with production pushing back, as a storm over the Operations room. In Network Velocity it is the
+quarter-end surge. Your loadout is whatever you approved earlier: skipped Domain Design means a hot partition, and no
+feature-flag practice means no way to switch off one segment.
 
 ![The SEV-1 incident: a spiky storm over Operations, the bots surrounding it, and the response abilities on the right](docs/screenshots/incident.jpg)
 
+Each scenario has its own incident. In The Second Region, eu-west-1 browns out. Here the team ran it under Express, so
+no stage ever decided who fails over:
+
+![The eu-west-1 brown-out: traffic is still going to the degraded region because failover was never designed](docs/screenshots/incident-infra.jpg)
+
 ### Read the debrief
 
-The debrief traces each outcome back to the decision that caused it.
+The debrief traces each outcome back to the decision that caused it, and says how well the scope you chose fitted the work.
 
 ![Mission debrief with score, decision chain, badges and stats](docs/screenshots/debrief.jpg)
 
@@ -108,7 +130,9 @@ The game takes these liberties, and says so in its Intel tab:
   human approval.
 - "Open risk" notes on stages that have no reviewer are the game's way of surfacing a weak decision.
 - Construction follows one Unit; a real run walks every Unit and stops at each Unit checkpoint.
-- The scenario (the Aegle API Team, its product and its numbers) and the incident are fiction.
+- The scenarios (the Aegle API Team, its product and its numbers) and the incidents are fiction.
+- Which scopes each scenario offers, and the best fit, workable and poor fit verdicts, are the game's reading of each
+  scope's upstream description.
 
 This project is not affiliated with or endorsed by AWS.
 
@@ -118,16 +142,18 @@ This project is not affiliated with or endorsed by AWS.
 |---|---|
 | `v3.html` | The built game. |
 | `v2.html` | The original 2D simulator, kept for reference. |
-| `src/game.html` | Game shell, styles, method data, scenario and engine. |
+| `src/game.html` | Game shell, styles, method data and engine. It contains no story. |
+| `src/scenarios/*.js` | The six scenarios: questions, artifacts, chat, findings, incident and debrief for each. |
 | `src/office/` | The three.js office: scene, camera, characters, effects, painted screens. |
 | `blender/build_assets.py` | Generates every 3D asset (office, 14 agent bots, Conductor, 5 humans, props). |
 | `blender/out/office.glb` | The generated asset file that gets embedded in `v3.html`. |
-| `build.mjs` | Bundles `src/office` with esbuild and inlines it and the GLB into `v3.html`. |
-| `tools/check.mjs` | Parses the built game script so a syntax error fails the build. |
-| `tools/playtest.mjs` | Autoplays all 11 scopes in three play styles and fails on any page error. |
+| `build.mjs` | Bundles `src/office` with esbuild and inlines it, the scenarios and the GLB into `v3.html`. |
+| `tools/check.mjs` | Fails the build on a syntax error, or if scenario wording appears in the engine. |
+| `tools/playtest.mjs` | Checks every scenario's data, then autoplays each scenario under each scope it offers. |
 | `tools/screenshots.mjs` | Captures the screenshots in this README. |
 
-The game talks to the office only through the `NET` bridge in `src/game.html`. The office reads room, desk, dock and gate
+The engine reads a scenario only through `SCN` (set by `useScenario()`), and talks to the office only through the `NET`
+bridge. The office reads room, desk, dock and gate
 positions from `A_*` empties in the GLB, so the layout lives in the Blender script alone.
 
 ## Build
@@ -136,20 +162,29 @@ positions from `A_*` empties in the GLB, so the layout lives in the Blender scri
 npm install
 npm run assets        # only after editing blender/build_assets.py (needs Blender 5.x at /Applications/Blender.app)
 npm run build         # writes v3.html
-npm run playtest      # optional: autoplay every scope to the debrief and report errors (needs Google Chrome)
+npm run playtest      # optional: autoplay every scenario and scope to the debrief (needs Google Chrome)
 npm run screenshots   # optional: recapture docs/screenshots (needs Google Chrome)
 ```
 
 Method data lives in two places in `src/game.html`: the `UPSTREAM` table (generated from the upstream stage frontmatter)
 and `PROFILES` (all 11 scopes: stage lists from each stage's `scopes:` frontmatter, switches from `core/scopes/aidlc-<name>.md`).
 
+### Adding a scenario
+
+Copy `src/scenarios/bug.js`, the shortest one, and add its id to `SCEN_ORDER` in `src/game.html`. A scenario lists the
+scopes that can run it (`scopes`, `best`, `fit`) and must supply content for every stage those scopes include.
+`npm run playtest` checks that, and that every question is asked, every fix target exists, and no artifact quietly shows
+the best answer for a decision nobody made (use `pkd()` for a decision from a stage the scope may have skipped).
+
 ## Autoplay (testing)
 
-`v3.html?auto=1&role=po&prof=feature&speed=60` plays a full run by itself and sets `window.__done` at the debrief.
+`v3.html?auto=1&scen=velocity&role=po&prof=feature&speed=60` plays a full run by itself and sets `window.__done` at the
+debrief.
 
 - `auto=1` best answers · `auto=bad` worst answers and rubber stamps · `auto=fix` worst answers, then request every fix ·
   `auto=hot` best answers except a hot-partition store that is never fixed
-- `role` = `po` `eng` `pm` `ops` `sec` · `prof` = any scope name, such as `feature`, `bugfix` or `security-patch`
+- `scen` = `velocity` `product` `bug` `secpatch` `refactor` `infra` · `prof` = a scope that scenario offers
+- `role` = `po` `eng` `pm` `ops` `sec`
 - `motion=0` reduced motion · `hold=boss` stop at the incident · `slow=3.5` play one stage at normal speed
 - `tour=1` opens the office tour directly; add `tourstep=4` to start at a given step
 
