@@ -182,7 +182,7 @@ export function create(o) {
     hub: { tgt: [0, .8, 0], az: .38, pol: .98, r: 9 }, docks: { tgt: [0, .7, .4], az: .4, pol: .86, r: 7.6 },
     all: { tgt: [0, .4, .8], az: .42, pol: .9, r: 18.5 },
     room1: { az: .5, pol: .97, r: 6.9 }, room2: { az: -.42, pol: .97, r: 6.9 }, room3: { az: -.5, pol: .9, r: 7.2 }, room4: { az: .55, pol: .9, r: 7.2 },
-    gate: { az: .34, pol: .78, r: 7.4 }, ops: { az: .55, pol: 1.02, r: 7.4 },
+    gate: { az: .2, pol: 1.16, r: 5.6 }, pods: { tgt: [12.4, 1.0, 6.4], az: -.3, pol: .95, r: 6.4 }, ops: { az: .55, pol: 1.02, r: 7.4 },
   };
   let view = 'title';
   function focus(name, force) {
@@ -191,7 +191,7 @@ export function create(o) {
     cam.d.az = v.az; cam.d.pol = v.pol; cam.d.r = v.r;
     if (v.tgt) cam.d.tgt.set(...v.tgt);
     else if (name.startsWith('room')) cam.d.tgt.copy(anchors[name + '_table'].p).add(V(0, .7, 0)).multiplyScalar(.82);
-    else if (name === 'gate') cam.d.tgt.copy(anchors.gate.p).add(V(0, -.2, -2.2));
+    else if (name === 'gate') cam.d.tgt.copy(anchors.gate.p).add(V(0, .1, -1.2));
     else if (name === 'ops') cam.d.tgt.copy(anchors.room4_table.p).add(V(-.6, 1.9, 0));
     dirty = true;
   }
@@ -334,7 +334,8 @@ export function create(o) {
   }
   function swarm(names) {
     if (!ready) return; dirty = true;
-    if (!names.length) { const dev = bots.DEV; drones.forEach(d => { d.target = dev.headPos(V()); d.label && d.label.e.remove(); d.label = null; }); pods.forEach((p, i) => podMats[i] && (podMats[i].emissiveIntensity = .6)); if (dev) setTimeout(() => { dev.pulse = 1; dev.setMood('happy', 1.5); }, 500); return; }
+    if (!names.length) { const dev = bots.DEV; drones.forEach(d => { d.target = dev.headPos(V()); d.label && d.label.e.remove(); d.label = null; }); pods.forEach((p, i) => podMats[i] && (podMats[i].emissiveIntensity = .6)); if (dev) setTimeout(() => { dev.pulse = 1; dev.setMood('happy', 1.5); }, 500); if (!alertOn && view === 'pods') focus('room3', true); return; }
+    if (!alertOn) focus('pods', true);
     names.forEach((n, i) => { const a = anchors['pod_' + (i % 4)], d = new Drone(o.droneProto, n, C.lime || '#8CFF6B'); d.home.copy(a.p); d.pos.copy(a.p).add(V(0, .3, 0)); d.label = mkLabel('sat'); d.label.nm.textContent = n.split('_').pop(); scene.add(d.g); drones.push(d); podMats[i % 4] && (podMats[i % 4].emissiveIntensity = 3.5); ringFx(tmp.copy(a.p).setY(.1), C.lime, true); });
   }
   function arc(a, b, c, label, life) {

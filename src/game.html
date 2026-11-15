@@ -439,7 +439,7 @@ kbd{font:600 11px var(--mono);padding:1px 5px;border:1px solid var(--line2);bord
 .act.locked{cursor:not-allowed;opacity:.42;border-style:dashed}
 .act.locked:hover{border-color:var(--line2)}
 .act.rec{border-color:var(--good);box-shadow:0 0 0 1px var(--good),0 0 16px color-mix(in srgb,var(--good) 35%,transparent)}
-.act.rec::after{content:"RECOMMENDED";position:absolute;top:8px;right:8px;font:700 8.5px var(--mono);letter-spacing:.08em;color:var(--good)}
+.act.rec::after{content:"RECOMMENDED";position:absolute;bottom:7px;right:8px;font:700 8.5px var(--mono);letter-spacing:.08em;color:var(--onfill);background:var(--good);padding:1px 6px;border-radius:5px}
 .blog{font:12px/1.5 var(--mono);color:var(--muted);max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .blog .g{color:var(--good)} .blog .r{color:var(--bad)} .blog .y{color:var(--warn)} .blog .c{color:var(--accent)}
 .loadout{display:flex;flex-direction:column;gap:5px;font-size:12.5px}
@@ -550,6 +550,8 @@ body.bossing #app{visibility:hidden}
 #boss .bgrid{grid-template-columns:minmax(300px,410px) minmax(0,1fr) minmax(300px,410px);align-items:start}
 #boss .bgrid>section:nth-child(2){grid-column:3}
 #boss .bhead{align-self:center;width:min(980px,100%)}
+#boss .acts{grid-template-columns:repeat(2,minmax(0,1fr))}
+#boss .act{min-height:0;padding:9px 10px}
 @media (max-width:1100px){#boss{background:color-mix(in srgb,var(--bg) 84%,transparent)}#boss .bgrid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}#boss .bgrid>section:nth-child(2){grid-column:auto}}
 body.o3fail #net{display:none}
 </style>
@@ -2464,6 +2466,7 @@ function autoplay(){
   startMission(PEOPLE[Q.get('role')]?Q.get('role'):'po',PROFILES[Q.get('prof')]?Q.get('prof'):'feature',true);
   const iv=setInterval(()=>{
     if(window.__done){clearInterval(iv);return}
+    if(window.__pauseIf&&window.__pauseIf()){clearInterval(iv);S.speed=.02;window.__paused=true;return}   // tools/screenshots.mjs freezes a moment this way
     const slow=Q.get('slow')&&S.cur&&S.cur.startsWith(Q.get('slow'));S.speed=slow?1:PREFS.speed;
     if(!Q.get('noskip')&&!slow)skipWait();
     if(!$('#boss').hidden){if(Q.get('hold')==='boss'&&($('#bossGo')||$('#acts'))){BOSS.rate=1;if($('#bossGo')&&Q.get('holdat')!=='loadout')$('#bossGo').click();if($('#acts')||Q.get('holdat')==='loadout'){clearInterval(iv);S.speed=1;$('#speedBtn').textContent='1×'}return}
