@@ -18,6 +18,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const SHOTS = [
   { name: 'title', query: '', wait: 6000 },
   { name: 'tour', query: '?tour=1&tourstep=2', wait: 4200 },
+  { name: 'scopes', query: '', wait: 1200,
+    start: () => { document.querySelector('#title').classList.remove('attract'); NET.layout(); document.querySelector('#h-prof').scrollIntoView({ block: 'start' }); document.querySelector('#title').scrollTop -= 14; } },
   { name: 'predict', query: '', wait: 3500,
     start: () => { PREFS.sound = false; document.querySelector('#title').classList.remove('attract'); startMission('po', 'feature', true); },
     until: () => S.cur === '1.1' && !!ACTIVE && !!ACTIVE.opts },

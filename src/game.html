@@ -333,7 +333,8 @@ kbd{font:600 11px var(--mono);padding:1px 5px;border:1px solid var(--line2);bord
 .rc b{font:600 15px/1.2 var(--display)}
 .rc small{color:var(--muted);font-size:12px;line-height:1.35;position:relative;z-index:1}
 .rc .rt{font:600 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--rc)}
-.profs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.profs{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:8px}
+.pc .ptag{font-weight:600;color:var(--ink)}
 .pc{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel2) 70%,transparent);transition:border-color .15s,box-shadow .2s}
 .pc:hover{border-color:var(--accent)}
 .pc[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 26px color-mix(in srgb,var(--accent) 25%,transparent)}
@@ -595,7 +596,7 @@ body.o3fail #net{display:none}
       <section class="glass hpanel" aria-label="Previously">
         <h3>Previously, in v1</h3>
         <div class="prev">
-          <p>The <b>Identity Risk API</b> team used AI-DLC v1 to ship <b>ID-VEL-01</b>: a warning when one identity appears on many loan applications <i>at a single lender</i>. v1 stopped at Build and Test. Operations was a placeholder.</p>
+          <p>The <b>Aegle API Team</b> used AI-DLC v1 to ship <b>ID-VEL-01</b>: a warning when one identity appears on many loan applications <i>at a single lender</i>. v1 stopped at Build and Test. Operations was a placeholder.</p>
           <p><b>Now:</b> fraud rings spread one identity across <i>many lenders</i>, so each lender sees only one application. Lenders want a network-wide warning, <b>ID-VEL-02</b>, live in production before the quarter-end surge. It also has to stay up when the surge arrives.</p>
         </div>
         <div class="stat3">
@@ -654,7 +655,7 @@ body.o3fail #net{display:none}
 <!-- ===== BOOT ===== -->
 <div class="ov dim" id="boot" hidden>
   <div class="glass term" role="log" aria-live="polite" aria-label="Terminal">
-    <div class="tb"><i></i><i></i><i></i><span>identity-risk-api — copilot — 120×32</span></div>
+    <div class="tb"><i></i><i></i><i></i><span>aegle-api — copilot — 120×32</span></div>
     <pre id="termtext"></pre>
     <div class="skip"><button class="btn small" id="bootSkip" type="button">Skip intro ⏭</button></div>
   </div>
@@ -721,7 +722,7 @@ body.o3fail #net{display:none}
 <script>
 /* ================= DATA ================= */
 const REC='aidlc/spaces/identity/intents/261113-network-velocity/';
-const KB='aidlc/spaces/identity/codekb/identity-risk-api/';
+const KB='aidlc/spaces/identity/codekb/aegle-api/';
 const MEM='aidlc/spaces/identity/memory/';
 const U2='construction/u2-network-velocity/';
 
@@ -773,15 +774,31 @@ const SENSOR_INFO={
 
 const ALL=['0.1','0.2','0.3','1.1','1.2','1.3','1.4','1.5','1.6','1.7','2.1','2.2','2.3','2.4','2.5','2.6','2.7','2.8','2.9','3.1','3.2','3.3','3.4','3.5','3.6','3.7','4.1','4.2','4.3','4.4','4.5','4.6','4.7'];
 const PROFILES={
-  /* The switches below are each scope's shipped ceremony (core/scopes/aidlc-<name>.md). */
-  express:{n:'Express',cnt:10,play:true,cmd:'/aidlc express',d:'The shortest path to production: 7 stages after Initialization. No reviewers, no sensors, no plan approval, no walking skeleton. The lead agent works alone.',st:['0.1','0.2','0.3','2.1','2.3','3.5','3.6','4.1','4.3','4.4'],mult:1,time:'~10 min',
-    depth:'Minimal',skeleton:false,review:false,guard:'off',sensors:false,learnings:false,summary:false,planApproval:false,collab:false},
-  feature:{n:'Feature',cnt:33,play:true,cmd:'/aidlc feature',d:'The full lifecycle for a production feature: every phase and stage, with sensors, reviewers and plan approval. Each stage runs with its lead agent.',st:ALL,mult:1,time:'~30 min',rec:true,
-    depth:'Standard',skeleton:true,review:true,guard:'off',sensors:true,learnings:true,summary:true,planApproval:true,collab:false},
-  enterprise:{n:'Enterprise',cnt:33,play:true,cmd:'/aidlc enterprise',d:'Full lifecycle at Comprehensive depth with Guard Policy strict and collaborators on: support agents join every stage, so the office gets busy. Score ×1.3.',st:ALL,mult:1.3,time:'~35 min',strict:true,
-    depth:'Comprehensive',skeleton:true,review:true,guard:'strict',sensors:true,learnings:true,summary:true,planApproval:true,collab:true},
+  /* All 11 shipped scopes. Stage lists come from each stage's `scopes:` frontmatter and the switches from
+     core/scopes/aidlc-<name>.md (awslabs/aidlc-workflows 2.11.4). rcap: the scope's review cap ('stage' = each stage's own class). */
+  feature:{n:"Feature",cnt:33,play:true,cmd:'/aidlc feature',tag:"Full lifecycle for new features, practical depth",d:"Every phase and stage, with sensors, reviewers and plan approval. Each stage runs with its lead agent.",st:ALL,time:'~30 min',col:'var(--cyan)',rec:true,
+    depth:'Standard',skeleton:true,review:true,rcap:'stage',guard:'off',sensors:true,learnings:true,summary:true,planApproval:true,collab:false},
+  enterprise:{n:"Enterprise",cnt:33,play:true,cmd:'/aidlc enterprise',tag:"Regulated enterprise feature, full audit trail",d:"The full lifecycle at Comprehensive depth, with Guard Policy strict and collaborators on: support agents join every stage, so the office gets busy. Score ×1.3.",st:ALL,time:'~30 min',col:'var(--mag)',mult:1.3,strict:true,
+    depth:'Comprehensive',skeleton:true,review:true,rcap:'stage',guard:'strict',sensors:true,learnings:true,summary:true,planApproval:true,collab:true},
+  workshop:{n:"Workshop",cnt:26,play:true,cmd:'/aidlc workshop',tag:"Facilitated group session with mandatory gates",d:"Everything except Ideation, for a group working through it together. Reviews are capped at advisory.",st:['0.1', '0.2', '0.3', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7'],time:'~25 min',col:'var(--violet)',
+    depth:'Standard',skeleton:true,review:true,rcap:'advisory',guard:'off',sensors:true,learnings:true,summary:true,planApproval:true,collab:false},
+  mvp:{n:"MVP",cnt:23,play:true,cmd:'/aidlc mvp',tag:"Skip operations, ship the core",d:"A trimmed Ideation, then all of Inception and Construction. Nothing in Operation: no deploy pipeline, no alarms, no runbooks.",st:['0.1', '0.2', '0.3', '1.1', '1.3', '1.4', '1.6', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7'],time:'~20 min',col:'var(--amber)',
+    depth:'Standard',skeleton:true,review:true,rcap:'stage',guard:'off',sensors:true,learnings:true,summary:true,planApproval:true,collab:false},
+  classic:{n:"Classic",cnt:18,play:true,cmd:'/aidlc classic',tag:"V1-style ceremony through Inception and Construction - the implicit default",d:"The v1 shape: all of Inception and Construction, no Ideation, and it stops at Build and Test. No walking skeleton.",st:['0.1', '0.2', '0.3', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6'],time:'~15 min',col:'#7DD3FC',
+    depth:'Standard',skeleton:false,review:true,rcap:'advisory',guard:'off',sensors:true,learnings:true,summary:false,planApproval:true,collab:false},
+  infra:{n:"Infra",cnt:15,play:true,cmd:'/aidlc infra',tag:"Infrastructure changes",d:"Practices, requirements, the NFR and infrastructure design stages, then build, CI and a full deploy with observability. No code scan.",st:['0.1', '0.2', '0.3', '2.2', '2.3', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '4.1', '4.2', '4.3', '4.4'],time:'~15 min',col:'#FFB547',
+    depth:'Standard',skeleton:true,review:true,rcap:'stage',guard:'off',sensors:true,learnings:true,summary:true,planApproval:true,collab:false},
+  express:{n:"Express",cnt:10,play:true,cmd:'/aidlc express',tag:"Lightest run: requirements to deploy, no design pass, no reviewers",d:"The shortest path to production. No reviewers, no sensors, no plan approval, no design pass. The lead agent works alone.",st:['0.1', '0.2', '0.3', '2.1', '2.3', '3.5', '3.6', '4.1', '4.3', '4.4'],time:'~10 min',col:'var(--lime)',
+    depth:'Minimal',skeleton:false,review:false,rcap:'none',guard:'off',sensors:false,learnings:false,summary:false,planApproval:false,collab:false},
+  refactor:{n:"Refactor",cnt:10,play:true,cmd:'/aidlc refactor',tag:"Clean up existing code",d:"The bugfix path plus Functional Design, so behaviour is pinned down before the code moves.",st:['0.1', '0.2', '0.3', '2.1', '2.3', '3.1', '3.5', '3.6', '4.1', '4.3'],time:'~10 min',col:'#2EE6C5',
+    depth:'Minimal',skeleton:false,review:true,rcap:'stage',guard:'off',sensors:true,learnings:true,summary:true,planApproval:true,collab:false},
+  "security-patch":{n:"Security patch",cnt:10,play:true,cmd:'/aidlc security-patch',tag:"CVE response",d:"The bugfix path plus NFR Requirements, so the security requirement is written down before the patch.",st:['0.1', '0.2', '0.3', '2.1', '2.3', '3.2', '3.5', '3.6', '4.1', '4.3'],time:'~10 min',col:'var(--red)',
+    depth:'Minimal',skeleton:false,review:true,rcap:'stage',guard:'off',sensors:true,learnings:true,summary:true,planApproval:true,collab:false},
+  bugfix:{n:"Bugfix",cnt:9,play:true,cmd:'/aidlc bugfix',tag:"Fix a specific bug",d:"Understand the code, say what fixed means, change it, test it, ship it. Reviews are capped at advisory.",st:['0.1', '0.2', '0.3', '2.1', '2.3', '3.5', '3.6', '4.1', '4.3'],time:'~10 min',col:'#FF9F5A',
+    depth:'Minimal',skeleton:false,review:true,rcap:'advisory',guard:'off',sensors:true,learnings:false,summary:false,planApproval:true,collab:false},
+  poc:{n:"PoC",cnt:8,play:true,cmd:'/aidlc poc',tag:"Prove feasibility fast",d:"Intent, a code scan, requirements, then code and tests. No design, no plan approval, and it never deploys.",st:['0.1', '0.2', '0.3', '1.1', '2.1', '2.3', '3.5', '3.6'],time:'~5 min',col:'#F5D061',
+    depth:'Minimal',skeleton:true,review:true,rcap:'advisory',guard:'off',sensors:true,learnings:true,summary:true,planApproval:false,collab:false},
 };
-const OTHER_PROFILES=[['mvp',23],['poc',8],['bugfix',9],['refactor',10],['infra',15],['security-patch',10],['classic',18],['workshop',26]];
 
 /* ---------- decisions: option 0 is always the best; display order is shuffled ---------- */
 const DEC={
@@ -833,7 +850,7 @@ const DEC={
   {t:'DynamoDB with a write-sharded key (fingerprint#0–9) and a TTL',s:10,fb:'Load spreads across partitions, even for very busy identities.'},
   {t:'DynamoDB with one item per fingerprint',s:2,r:10,fb:'Simple, but one busy identity hammers a single partition.'},
   {t:'Redis only, in memory',s:3,r:5,fb:'Fast, but the 14-day history is lost on failover.'}]},
- '2.7.skel':{own:'eng',by:'ARC',q:'This scope ships with the walking skeleton on, so the first Unit is the smallest working end-to-end slice. Keep it?',ctx:'The stance comes from the Walking Skeleton practice (org → team → project), with the scope setting as fallback. A human can still switch it off for one piece of work.',o:[
+ '2.7.skel':{when:()=>scope().skeleton,own:'eng',by:'ARC',q:'This scope ships with the walking skeleton on, so the first Unit is the smallest working end-to-end slice. Keep it?',ctx:'The stance comes from the Walking Skeleton practice (org → team → project), with the scope setting as fallback. A human can still switch it off for one piece of work.',o:[
   {t:'Keep it: u0 is the thinnest slice through /assess → fingerprint → counter → reason',s:10,fb:'Integration risk is retired first, and building Units side by side becomes safe.'},
   {t:'Switch it off. Build each unit in full and integrate at the end.',s:2,r:5,fb:'Integration problems surface at the end, when they cost the most.'}]},
  '2.8.contract':{own:'eng',by:'ARC',q:'How does /assess return the new signal to 40 lenders?',ctx:'Contract Design covers public APIs.',o:[
@@ -911,7 +928,7 @@ const STAGES=[
 {id:'0.2',ph:0,n:'Workspace Detection',lead:'CND',pat:'Engine',hrs:0.05,auto:true,
  what:'Classifies the workspace and detects the stack.',why:'A brownfield repo means Reverse Engineering is needed before anyone designs.',
  files:[],
- pre:[['SYS','<code>WORKSPACE_SCANNED</code>: brownfield · TypeScript 5 · Node 20 · AWS CDK · repo <code>identity-risk-api</code> (v1 found)']]},
+ pre:[['SYS','<code>WORKSPACE_SCANNED</code>: brownfield · TypeScript 5 · Node 20 · AWS CDK · repo <code>aegle-api</code> (v1 found)']]},
 {id:'0.3',ph:0,n:'State Initialization',lead:'CND',pat:'Engine',hrs:0.05,auto:true,
  what:'Populates workflow state and routing, and opens the audit shard.',why:'State plus audit means the workflow can resume and be reconstructed exactly.',
  files:[{p:REC+'aidlc-state.md',opt:1,b:()=>H('Workflow state')+T(['Field','Value'],[['Intent','network-velocity (ID-VEL-02)'],['Scope',S.prof],['Workspace','brownfield'],['Current stage',S.cur||'—'],['Depth',scope().depth],['Guard Policy',scope().guard],['Collaborators',scope().collab?'on':'off'],['Sensors',scope().sensors?'on':'off'],['Plan approval',scope().planApproval?'on':'off'],['Walking skeleton',scope().skeleton?'on':'off']])},
@@ -995,15 +1012,15 @@ const STAGES=[
                               ├▶ device check
                               └▶ reasons[] ─▶ response (p99 210 ms)`)+P('Single region (eu-west-1). Reasons are computed in parallel and merged.')},
   {p:KB+'code-quality-assessment.md',b:()=>T(['ID','Finding','Where'],[['CQ-01','test coverage 71%','src/'],['CQ-02','no timeout on DynamoDB client','src/store.ts:14'],['CQ-03','reason merging is untested for >3 reasons','src/reasons.ts:40'],['<b class="wa">CQ-04</b>','<b>identities fingerprinted with unsalted SHA-256</b>','src/fingerprint.ts:22']])},
-  {p:KB+'business-overview.md',opt:1,b:()=>P('Identity Risk API: real-time identity risk signals for 40 lenders at the point of application.')},
+  {p:KB+'business-overview.md',opt:1,b:()=>P('Aegle API: real-time identity risk signals for 40 lenders at the point of application.')},
   {p:KB+'code-structure.md',opt:1,b:()=>PRE('src/\n  handler.ts\n  fingerprint.ts\n  reasons.ts\n  store.ts\n  rules/vel01.ts')},
   {p:KB+'api-documentation.md',opt:1,b:()=>PRE('POST /assess → { decisionHint, reasons: [{code, detail}] }')},
   {p:KB+'component-inventory.md',opt:1,b:()=>L(['assess λ','vel01 rule','fingerprint lib','DynamoDB table identity-events'])},
   {p:KB+'technology-stack.md',opt:1,b:()=>L(['TypeScript 5 / Node 20','AWS Lambda, API Gateway, DynamoDB','CDK v2'])},
   {p:KB+'dependencies.md',opt:1,b:()=>L(['@aws-sdk/client-dynamodb 3.x','zod 3.x'])},
   {p:KB+'reverse-engineering-timestamp.md',opt:1,b:()=>P('Full scan at 2026-11-13T11:02Z, covering 100% of src/.')}],
- pre:[['DEV','Pipeline step 1/2: scanning <code>identity-risk-api</code>. 4,812 lines, 63 files.'],['DEV','Found it: <code>src/fingerprint.ts:22</code> hashes name+DOB with unsalted SHA-256. Flagging it as CQ-04.'],['ARC','Pipeline step 2/2: synthesising architecture and component inventory from the scan.']],
- preSolo:[['DEV','Scanning <code>identity-risk-api</code>: 4,812 lines, 63 files. Collaborators are off in this scope, so I run the whole pipeline myself.'],['DEV','Found it: <code>src/fingerprint.ts:22</code> hashes name+DOB with unsalted SHA-256. Flagging it as CQ-04.']],
+ pre:[['DEV','Pipeline step 1/2: scanning <code>aegle-api</code>. 4,812 lines, 63 files.'],['DEV','Found it: <code>src/fingerprint.ts:22</code> hashes name+DOB with unsalted SHA-256. Flagging it as CQ-04.'],['ARC','Pipeline step 2/2: synthesising architecture and component inventory from the scan.']],
+ preSolo:[['DEV','Scanning <code>aegle-api</code>: 4,812 lines, 63 files. Collaborators are off in this scope, so I run the whole pipeline myself.'],['DEV','Found it: <code>src/fingerprint.ts:22</code> hashes name+DOB with unsalted SHA-256. Flagging it as CQ-04.']],
  post:[['DEV','Nine codekb files written to the <b>space-level</b> store. Future intents reuse them while they\'re current.']]},
 
 {id:'2.2',ph:2,n:'Practices Discovery',lead:'PIP',col:['QA','DEV','DSO'],pat:'Hub & spoke',own:'eng',hrs:2,alt:['DEV','DLV'],cond:1,
@@ -1162,7 +1179,7 @@ reasons[] += { <span class="s">"code"</span>: <span class="s">"ID-VEL-02"</span>
  dec:['4.1.strategy'],
  files:[{p:REC+'operation/deployment-pipeline/deployment-strategy.md',b:()=>P(pk('4.1.strategy',['<b>Canary</b> 5% → 25% → 100%, 10 min bake each, auto-rollback on SLO burn','<b>Blue/green</b> switch with instant flip-back','<b>All at once</b>']))},
         {p:REC+'operation/deployment-pipeline/rollback-runbook.md',b:()=>L(['Trigger: '+pk('4.4.alarm',['burn-rate alarm','CPU alarm'],0),'Action: '+pk('4.1.strategy',['canary auto-rollback (~2 min)','flip to blue (~1 min)','redeploy previous (~8 min)']),'Also: AppConfig flag vel02.enabled=false'+(dv('2.2.flag')===0?' (team rule)':' <span class="wa">(no flag planned)</span>')])},
-        {p:REC+'operation/deployment-pipeline/cd-config.md',opt:1,b:()=>PRE('pipeline: identity-risk-api-cd\nstages: staging → prod')}],
+        {p:REC+'operation/deployment-pipeline/cd-config.md',opt:1,b:()=>PRE('pipeline: aegle-api-cd\nstages: staging → prod')}],
  pre:[['PIP','Designing the CD pipeline and rollback.']],
  post:[['PIP','Writing the deployment strategy and rollback runbook.']],
  finds:()=>dv('4.1.strategy')===2?[{by:'PIP',t:'All-at-once has no blast-radius control, and rollback takes about 8 minutes.',src:'deployment-strategy.md:L1',fix:'4.1.strategy',ch:'Use a canary with auto-rollback'}]:[]},
@@ -1199,7 +1216,7 @@ reasons[] += { <span class="s">"code"</span>: <span class="s">"ID-VEL-02"</span>
  what:'Runbooks, incident plan and escalation matrix.',why:'Decide how to respond to an incident before it happens.',
  dec:['4.5.esc'],
  files:[{p:REC+'operation/incident-response/runbooks.md',b:()=>L(['RB-1 counter store hot / throttled → reshard or scale','RB-2 false-positive spike → disable per segment via flag','RB-3 threshold probing → tighten per-lender rate limit'])},
-        {p:REC+'operation/incident-response/escalation-matrix.md',b:()=>P(pk('4.5.esc',['SEV-1: incident commander (Jordan) · SRE (Maya) · lender status page within 15 min','<span class="wa">Email identity-team@</span>']))},
+        {p:REC+'operation/incident-response/escalation-matrix.md',b:()=>P(pk('4.5.esc',['SEV-1: incident commander (Jordan) · SRE (Maya) · lender status page within 15 min','<span class="wa">Email aegle-api-team@</span>']))},
         {p:REC+'operation/incident-response/incident-plan.md',opt:1,b:()=>L(['Declare → Investigate → Mitigate → Communicate → Postmortem'])}],
  pre:[['OPS','Writing runbooks for the failure modes we already know about.']],
  post:[['OPS','Runbooks, incident plan and escalation matrix written.']],
@@ -1269,13 +1286,14 @@ const scope=()=>PROFILES[S.prof]||PROFILES.feature;
 const stageCols=st=>scope().collab?(st.sup||[]):[];
 const stageRev=st=>scope().review?(st.rev||null):null;
 const stageSens=st=>scope().sensors?(st.sens||[]):[];
+const stageRclass=st=>scope().rcap==='advisory'?'advisory':st.rclass;   // bugfix, poc, classic and workshop cap every review at advisory
 const stagePat=st=>st.build&&S.dec['2.9.exec']===1?'Swarm':(!scope().collab&&['Hub & spoke','Mob','Pipeline'].includes(st.pat))?(st.mode==='inline'?'Inline':'Subagent'):st.pat;
 const active=(st,k)=>k===st.lead||k===stageRev(st)||stageCols(st).includes(k);
 const zeroUnit=()=>!S.plan||!S.plan.includes('2.7');
 const fixPath=p=>zeroUnit()?p.replace(U2,'construction/'):p;
 
 function unitList(){
-  if(zeroUnit())return[{id:'identity-risk-api',kind:'service',st:'(no Units in this scope)',plan:'add ID-VEL-02 to /assess: fingerprint, network counter, rule, reasons[] merge',files:31,tests:310}];
+  if(zeroUnit())return[{id:'aegle-api',kind:'service',st:'(no Units in this scope)',plan:'add ID-VEL-02 to /assess: fingerprint, network counter, rule, reasons[] merge',files:31,tests:310}];
   const u=[];
   if(S.dec['2.7.skel']===0)u.push({id:'u0-walking-skeleton',kind:'service',st:'US-01 (thin)',plan:'smallest working slice: /assess → fingerprint → counter → reason stub',files:9,tests:14});
   u.push({id:'u1-fingerprint-vault',kind:'library',st:'US-04, US-06',plan:'HMAC via KMS GenerateMac; '+(S.dec['2.3.hash']===1?'unsalted SHA-256 (v1)':'key rotation'),files:7,tests:41});
@@ -1509,7 +1527,7 @@ function renderIntel(){
   const sw=(n,v)=>`<div><dt>${n}</dt><dd><b style="color:${v==='off'||v==='none'?'var(--warn)':'var(--good)'}">${v}</b></dd></div>`;
   $('#intel').innerHTML=`${st?`<section><div class="card"><div class="ck"><span>Now · ${st.id}</span><span>${PHASES[st.ph].n}</span></div><b>${st.n}</b><span class="hint">${st.what}</span><span class="hint"><b>Mode: ${stagePat(st)}</b>. ${PAT[stagePat(st)]||''}</span>${st.cond?'<span class="hint">Conditional: the scope or the project can skip this stage.</span>':''}${st.slug?`<span class="hint mono" style="font-size:11px">slug: ${st.slug}</span>`:''}</div></section>`:''}
   <section><div class="card"><div class="ck"><span>Your seat</span><span class="owner" style="--oc:var(--${S.role})">${p.t}</span></div><span class="hint">${p.brief}</span><span class="hint">In this scope you approve <b>${myGates.length}</b> gates (${myGates.join(', ')||'none'}) and answer up to <b>${myDec.length}</b> questions.</span></div></section>
-  <section>${h3(`${sc.n} scope · ceremony`)}<dl>${sw('Depth',sc.depth)}${sw('Sensors',sc.sensors?'on':'off')}${sw('Reviewers',sc.review?'on':'none')}${sw('Plan approval',sc.planApproval?'on':'off')}${sw('Walking skeleton',sc.skeleton?'on':'off')}${sw('Collaborators',sc.collab?'on':'off')}${sw('Learnings',sc.learnings?'on':'off')}${sw('Guard Policy',sc.guard)}</dl><p class="hint">A scope (the guide also calls it a workflow profile) is a stage list plus these switches. Fewer switches means faster, and fewer things checking the work.</p></section>
+  <section>${h3(`${sc.n} scope · ceremony`)}<dl>${sw('Depth',sc.depth)}${sw('Sensors',sc.sensors?'on':'off')}${sw('Reviewers',!sc.review?'none':sc.rcap==='advisory'?'advisory cap':'on')}${sw('Plan approval',sc.planApproval?'on':'off')}${sw('Walking skeleton',sc.skeleton?'on':'off')}${sw('Collaborators',sc.collab?'on':'off')}${sw('Learnings',sc.learnings?'on':'off')}${sw('Guard Policy',sc.guard)}</dl><p class="hint">A scope (the guide also calls it a workflow profile) is a stage list plus these switches. Fewer switches means faster, and fewer things checking the work.</p></section>
   <section>${h3('The six sensors')}<dl>${SENSORS.map(s=>`<div><dt class="mono" style="font-size:12px">${s}${st&&stageSens(st).includes(s)?' <span style="color:var(--good)">· this stage</span>':''}</dt><dd>${SENSOR_INFO[s]}</dd></div>`).join('')}</dl><p class="hint">Each stage imports only the sensors that apply to it. All six ship as advisory: they check evidence and structure, not whether a design is wise. That judgement is yours.</p></section>
   <section>${h3('Gate options')}<dl><div><dt>Approve · Continue to &lt;next&gt;</dt><dd>Advance the workflow.</dd></div><div><dt>Request Changes</dt><dd>The lead agent revises and the artifact gets a new revision. After 3 change requests a third option, <i>Accept as-is</i>, appears.</dd></div><div><dt>Approve, and add &lt;skipped stage&gt; next</dt><dd>In Ideation and Inception, pull a skipped stage back in when it turns out to matter.</dd></div><div><dt>“Approve, but let's stop there for today”</dt><dd>Not a button: a reply. It approves and parks the workflow; <code>/aidlc --resume</code> picks it up.</dd></div></dl></section>
   <section>${h3('14 agents')}<dl>${Object.entries(AGENTS).map(([k,a])=>`<div><dt><span class="mono" style="color:${a.c}">${k}</span> ${a.n}</dt><dd>${a.d}</dd></div>`).join('')}</dl></section>
@@ -1610,8 +1628,8 @@ async function review(st,fs){
   setStep(5);
   const rv=stageRev(st),rf=fs.filter(f=>f.kind==='review');
   setTurn('agents',null,rv?`${AGENTS[rv].n} is reviewing.`:'Collecting open risks.');
-  if(rv){audit('REVIEW_REQUESTED',`${rv} on ${st.slug} · ${st.rclass}`);NET.roleMood(rv,'review');const line=(st.post||[]).find(l=>l[0]===rv);await say(rv,line?line[1]:`Reviewing ${st.n.toLowerCase()}…`,{to:'GATE'})}
-  const c=card('',`<div class="ck"><span>${rv?`Review · ${AGENTS[rv].n} · ${st.rclass}`:'Stage summary'}</span><span>${fs.length} item${fs.length===1?'':'s'}</span></div>`);
+  if(rv){audit('REVIEW_REQUESTED',`${rv} on ${st.slug} · ${stageRclass(st)}`);NET.roleMood(rv,'review');const line=(st.post||[]).find(l=>l[0]===rv);await say(rv,line?line[1]:`Reviewing ${st.n.toLowerCase()}…`,{to:'GATE'})}
+  const c=card('',`<div class="ck"><span>${rv?`Review · ${AGENTS[rv].n} · ${stageRclass(st)}${st.rclass!==stageRclass(st)?' (capped)':''}`:'Stage summary'}</span><span>${fs.length} item${fs.length===1?'':'s'}</span></div>`);
   if(!fs.length)c.appendChild(el('div','finding ok',`<span class="fh">${rv?'Verdict: READY':'No open risks'}</span>The artifacts match the intent, inputs and rubric.`));
   for(const f of fs){
     const d=el('div','finding',`<span class="fh">${fLabel(f)}</span>${f.t}<span class="src">↳ ${f.src}</span>`);c.appendChild(d);
@@ -1619,7 +1637,7 @@ async function review(st,fs){
     scrollCon(c);
   }
   if(rv){audit('REVIEW_COMPLETED',`${rv} · ${rf.length?'NOT-READY':'READY'} · ${rf.length} finding${rf.length===1?'':'s'}`);
-    if(rf.length)c.appendChild(el('p','hint',`Verdict: <b>NOT-READY</b>. ${st.rclass==='adversarial'?'On Construction stages the review is adversarial: the builder re-runs on NOT-READY, up to two iterations. ':''}A review never blocks the workflow: the human always has the final say at the gate.`))}
+    if(rf.length)c.appendChild(el('p','hint',`Verdict: <b>NOT-READY</b>. ${stageRclass(st)==='adversarial'?'On Construction stages the review is adversarial: the builder re-runs on NOT-READY, up to two iterations. ':st.rclass==='adversarial'?`This stage's review is adversarial by default, but the ${scope().n} scope caps reviews at advisory: one pass, no re-run. `:''}A review never blocks the workflow: the human always has the final say at the gate.`))}
   await wait(300);
 }
 
@@ -1655,7 +1673,7 @@ async function teamGate(st,fs){
   if(st.id==='2.3'&&!S.plan.includes('2.6')){
     await say('CND','Domain Design is skipped in this scope, but the requirements add a new hot-path counter store. Add it?');
     setTurn('me',S.role,`${p.n} asks the team before approving.`);
-    const q=card('mine flash',`<div class="ck"><span>${p.n} asks you</span><span class="owner" style="--oc:var(--${S.role})">You</span></div><div class="q">Should the gate add Domain Design (2.6) next?</div><div class="opts"><button class="opt" type="button" data-v="1"><b>A</b><span>Yes: approve, and add Domain Design next</span></button><button class="opt" type="button" data-v="0"><b>B</b><span>No: keep Express lean</span></button></div>`);
+    const q=card('mine flash',`<div class="ck"><span>${p.n} asks you</span><span class="owner" style="--oc:var(--${S.role})">You</span></div><div class="q">Should the gate add Domain Design (2.6) next?</div><div class="opts"><button class="opt" type="button" data-v="1"><b>A</b><span>Yes: approve, and add Domain Design next</span></button><button class="opt" type="button" data-v="0"><b>B</b><span>No: keep ${scope().n} lean</span></button></div>`);
     const bs=[...q.querySelectorAll('.opt')];const v=await new Promise(res=>{ACTIVE={opts:bs};bs.forEach(b=>b.onclick=()=>res(+b.dataset.v))});ACTIVE=null;
     bs.forEach(b=>{b.disabled=true;b.classList.add(+b.dataset.v===v?'picked':'dim')});
     pts(v?10:0,v?'Pulled a skipped stage back in':'Kept Domain Design skipped',10);
@@ -1925,7 +1943,7 @@ async function runStage(st){
   for(const l of pre){const w=speaker(st,l[0]);if(!w)continue;await say(w,l[1],{to:w===st.lead?'CND':st.lead})}
   if(st.build)await buildFlow(st);
   else{
-    if(st.dec&&st.dec.length){setStep(2);for(const id of st.dec)await decide(id)}
+    if(st.dec&&st.dec.length){setStep(2);for(const id of st.dec)if(!DEC[id].when||DEC[id].when())await decide(id)}
     if(st.canary)await canary();
     if(st.load)await loadTest(st);
     setStep(3);setTurn('agents',null,`${AGENTS[st.lead].n} is writing artifacts.`);
@@ -2100,7 +2118,6 @@ function checkBadges(final){
    TITLE SCREEN
    ===================================================================== */
 const PICK={role:PEOPLE[PREFS.role]?PREFS.role:'po',prof:PROFILES[PREFS.prof]?PREFS.prof:'feature'};
-const PROF_COL={express:'var(--lime)',feature:'var(--cyan)',enterprise:'var(--mag)'};
 function radioKeys(group,onPick){
   group.addEventListener('keydown',e=>{
     const items=[...group.querySelectorAll('[role="radio"]')];const i=items.indexOf(document.activeElement);if(i<0)return;
@@ -2112,10 +2129,10 @@ function renderTitle(){
   const gatesOf=k=>ALL.filter(id=>ST[id].own===k).length,qOf=k=>Object.keys(DEC).filter(d=>DEC[d].own===k).length;
   $('#roles').innerHTML=ROLE_ORDER.map(k=>{const p=PEOPLE[k];return`<button class="rc" type="button" role="radio" data-k="${k}" aria-checked="${PICK.role===k}" tabindex="${PICK.role===k?0:-1}" style="--rc:var(--${k})">
     <span class="ava">${p.ini}</span><span class="rt">${p.v1?'v1 team':'new in v2'}</span><b>${p.full}</b><small>${p.t}. ${p.brief}</small><small class="mono" style="font-size:11px;color:var(--dim)">${gatesOf(k)} gates · ${qOf(k)} questions</small></button>`}).join('');
-  $('#profs').innerHTML=Object.entries(PROFILES).map(([k,p])=>`<button class="pc" type="button" role="radio" data-k="${k}" aria-checked="${PICK.prof===k}" tabindex="${PICK.prof===k?0:-1}" style="--pc:${PROF_COL[k]}">
+  $('#profs').innerHTML=Object.entries(PROFILES).map(([k,p])=>`<button class="pc" type="button" role="radio" data-k="${k}" aria-checked="${PICK.prof===k}" tabindex="${PICK.prof===k?0:-1}" style="--pc:${p.col}">
     <span class="pt"><b>${p.n}${p.rec?' <span class="tag" style="font-size:9.5px;color:var(--cyan);border-color:var(--cyan)">recommended</span>':''}</b><span class="cnt">${p.cnt} stages</span></span>
-    <small>${p.d}</small><small class="mono sw">${[['sensors',p.sensors],['reviewers',p.review],['plan approval',p.planApproval],['skeleton',p.skeleton],['collaborators',p.collab]].map(([n,v])=>`<i class="${v?'y':'n'}">${v?'✓':'×'} ${n}</i>`).join('')}</small><span class="mini" aria-hidden="true">${ALL.map(id=>`<i class="${p.st.includes(id)?'on':''}"></i>`).join('')}</span><code>${p.cmd}</code><small class="mono" style="font-size:11px">${p.time}${p.mult>1?` · score ×${p.mult}`:''}</small></button>`).join('');
-  $('#otherprof').innerHTML=`<span>Other shipped scopes (not playable here):</span>`+OTHER_PROFILES.map(([n,c])=>`<span><b>${n}</b> ${c}</span>`).join('')+`<span>· or a tailored plan from the Composer. Counts include the 3 Initialization steps; a real run shows 30 and 7.</span>`;
+    <small class="ptag">${p.tag}</small><small>${p.d}</small><small class="mono sw">${[['sensors',p.sensors],[p.rcap==='advisory'?'reviewers (advisory cap)':'reviewers',p.review],['plan approval',p.planApproval],['skeleton',p.skeleton],['collaborators',p.collab]].map(([n,v])=>`<i class="${v?'y':'n'}">${v?'✓':'×'} ${n}</i>`).join('')}</small><span class="mini" aria-hidden="true">${ALL.map(id=>`<i class="${p.st.includes(id)?'on':''}"></i>`).join('')}</span><code>${p.cmd}</code><small class="mono" style="font-size:11px">${p.time}${p.mult>1?` · score ×${p.mult}`:''}</small></button>`).join('');
+  $('#otherprof').innerHTML=`<span>All 11 shipped scopes are playable. Each one runs the same intent, so you can compare what it keeps, what it drops, and what that costs you at quarter end. Counts include the 3 Initialization steps; a real run shows 30 for Feature and 7 for Express.</span>`;
   const best=loadBest();
   const pick=(grp,k)=>{PICK[grp]=k;$$(`#${grp==='role'?'roles':'profs'} [role="radio"]`).forEach(b=>{const on=b.dataset.k===k;b.setAttribute('aria-checked',on);b.tabIndex=on?0:-1});
     if(grp==='role')document.body.dataset.role=k;startHint();AUD.blip(grp==='role'?660:520,.04)};
@@ -2156,7 +2173,7 @@ async function boot(){
   const g=S.gen,p=PROFILES[S.prof];bootFast=!S.motion;
   $('#title').hidden=true;$('#boot').hidden=false;
   const L=[
-    ['p','$ ','cd identity-risk-api && copilot'],
+    ['p','$ ','cd aegle-api && copilot'],
     ['p','> ',p.cmd],
     ['c','  ','What do you want to build?'],
     ['p','> ','Warn lenders when one identity appears across many lenders'],
@@ -2218,7 +2235,8 @@ async function bossFight(){
   const g=S.gen,D=S.dec,ov=$('#boss'),wrap=$('#bwrap');
   NET.alert(true);AUD.alarm(true);AUD.mood('boss');
   audit('SIM · INCIDENT_OPENED','SEV-1 quarter-end surge (simulator fiction, not an AI-DLC event)');document.body.classList.add('bossing');NET.layout();
-  await cine({k:'PagerDuty · SEV-1',h:'Quarter-end surge',p:'It\'s the last business day of the quarter. Traffic is at 4× normal and ID-VEL-02 is live for every lender. Alarms are firing.',c:'var(--red)',ms:2600});
+  const shipped=S.plan.includes('4.3');
+  await cine({k:'PagerDuty · SEV-1',h:'Quarter-end surge',p:shipped?'It\'s the last business day of the quarter. Traffic is at 4× normal and ID-VEL-02 is live for every lender. Alarms are firing.':`The ${scope().n} scope stops before deployment, so the team shipped ID-VEL-02 by hand to make quarter end. Nothing in Operation was ever designed. Traffic is at 4× normal, and alarms are firing.`,c:'var(--red)',ms:shipped?2600:3600});
   alive(g);
 
   const cause=(D['2.6.store']===undefined||D['2.6.store']===1)?'hot':D['1.2.buy']===1?'vendor':D['3.4.cap']===1?'throttle':'surge';
@@ -2415,6 +2433,7 @@ function showDebrief(){
   if(D['3.2.threat']!==undefined)C2('3.2',D['3.2.threat']===0,D['3.2.threat']===0?'The threat model blocked the enumeration probe automatically.':'Skipping enumeration left the probe for you to fight.');
   if(D['3.5.addr']!==undefined)C2('3.5',D['3.5.addr']===0,D['3.5.addr']===0?'The postcode fallback made the false-positive fix strong.':'Loose matching fed the false-positive storm.');
   if(D['4.5.esc']!==undefined)C2('4.5',D['4.5.esc']===0,D['4.5.esc']===0?'An escalation matrix made notifying lenders nearly instant.':'Email escalation slowed the response.');
+  if(!S.plan.includes('4.3'))C2('OPS',false,`The ${prof.n} scope never ran Deployment Execution. The release went out by hand, with no rollback plan, alarms or runbooks designed.`);
   if(S.boss)C2('SEV',S.boss.won,`Incident: ${S.boss.won?'SLO held':S.boss.rolledBack?'rolled back':'SLO breached'} with ${S.boss.budget}% budget left.`);
   const stat=(n,v)=>`<div><b>${v}</b><span>${n}</span></div>`;
   $('#dwrap').innerHTML=`<section class="glass dhero"><div><p class="kick" style="margin:0">Mission debrief · ${prof.n} scope</p><div class="big">${final}</div></div>

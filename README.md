@@ -13,8 +13,8 @@ embedded in the file. A window at least 1200px wide gives the office the most ro
 
 - **Mouse:** drag to orbit the office, scroll to zoom, double-click to reset the view, hover anyone to see who they are.
 - **Keys:** `1`–`4` pick an option, `A` approve, `R` request changes, `Space` skip waiting, `M` sound on/off.
-- Choose a seat (Product Owner, Engineering Lead, Delivery Manager, SRE, Security) and a scope (Express, Feature,
-  Enterprise). A Feature run takes about 30 minutes; Express about 10.
+- Choose a seat (Product Owner, Engineering Lead, Delivery Manager, SRE, Security) and one of the 11 scopes. A Feature
+  run takes about 30 minutes; the short scopes take 5 to 10.
 
 ### Take the tour first
 
@@ -24,6 +24,31 @@ each one carries, the five humans, the approval gate, the sensors, the record wa
 setup screen.
 
 ![The office tour introducing the eleven domain experts, each labelled on its dock](docs/screenshots/tour.jpg)
+
+### Pick a scope
+
+All 11 shipped AI-DLC scopes are playable. A scope is a stage list plus ceremony switches (sensors, reviewers, plan
+approval, walking skeleton, collaborators). Every scope runs the same intent, so you can compare what each one keeps,
+what it drops, and what that costs you when the surge arrives.
+
+![The scope picker with all eleven scopes, their stage maps and ceremony switches](docs/screenshots/scopes.jpg)
+
+| Scope | Stages | What it is |
+|---|---|---|
+| `feature` | 33 | Full lifecycle for new features, at practical depth. |
+| `enterprise` | 33 | Full lifecycle at Comprehensive depth, Guard Policy strict, collaborators on. |
+| `workshop` | 26 | Everything except Ideation, for a facilitated group. Reviews capped at advisory. |
+| `mvp` | 23 | Trimmed Ideation, all of Inception and Construction, nothing in Operation. |
+| `classic` | 18 | The v1 shape: Inception and Construction, stopping at Build and Test. |
+| `infra` | 15 | Infrastructure changes: NFR and infrastructure design, CI, deploy and observability. |
+| `express` | 10 | Requirements to deploy with no design pass, reviewers, sensors or plan approval. |
+| `refactor` | 10 | The bugfix path plus Functional Design. |
+| `security-patch` | 10 | The bugfix path plus NFR Requirements. |
+| `bugfix` | 9 | Scan, requirements, fix, test, deploy. |
+| `poc` | 8 | Intent, scan, requirements, code and tests. It never deploys. |
+
+Scopes that stop before Deployment Execution (`mvp`, `classic`, `poc`) still meet quarter end: the team ships by hand,
+with nothing in Operation designed.
 
 ## What you do
 
@@ -83,7 +108,7 @@ The game takes these liberties, and says so in its Intel tab:
   human approval.
 - "Open risk" notes on stages that have no reviewer are the game's way of surfacing a weak decision.
 - Construction follows one Unit; a real run walks every Unit and stops at each Unit checkpoint.
-- The scenario (the Identity Risk API, its team and its numbers) and the incident are fiction.
+- The scenario (the Aegle API Team, its product and its numbers) and the incident are fiction.
 
 This project is not affiliated with or endorsed by AWS.
 
@@ -99,6 +124,7 @@ This project is not affiliated with or endorsed by AWS.
 | `blender/out/office.glb` | The generated asset file that gets embedded in `v3.html`. |
 | `build.mjs` | Bundles `src/office` with esbuild and inlines it and the GLB into `v3.html`. |
 | `tools/check.mjs` | Parses the built game script so a syntax error fails the build. |
+| `tools/playtest.mjs` | Autoplays all 11 scopes in three play styles and fails on any page error. |
 | `tools/screenshots.mjs` | Captures the screenshots in this README. |
 
 The game talks to the office only through the `NET` bridge in `src/game.html`. The office reads room, desk, dock and gate
@@ -110,11 +136,12 @@ positions from `A_*` empties in the GLB, so the layout lives in the Blender scri
 npm install
 npm run assets        # only after editing blender/build_assets.py (needs Blender 5.x at /Applications/Blender.app)
 npm run build         # writes v3.html
+npm run playtest      # optional: autoplay every scope to the debrief and report errors (needs Google Chrome)
 npm run screenshots   # optional: recapture docs/screenshots (needs Google Chrome)
 ```
 
 Method data lives in two places in `src/game.html`: the `UPSTREAM` table (generated from the upstream stage frontmatter)
-and `PROFILES` (the scope switches, mirroring `core/scopes/aidlc-{express,feature,enterprise}.md`).
+and `PROFILES` (all 11 scopes: stage lists from each stage's `scopes:` frontmatter, switches from `core/scopes/aidlc-<name>.md`).
 
 ## Autoplay (testing)
 
@@ -122,7 +149,7 @@ and `PROFILES` (the scope switches, mirroring `core/scopes/aidlc-{express,featur
 
 - `auto=1` best answers · `auto=bad` worst answers and rubber stamps · `auto=fix` worst answers, then request every fix ·
   `auto=hot` best answers except a hot-partition store that is never fixed
-- `role` = `po` `eng` `pm` `ops` `sec` · `prof` = `express` `feature` `enterprise`
+- `role` = `po` `eng` `pm` `ops` `sec` · `prof` = any scope name, such as `feature`, `bugfix` or `security-patch`
 - `motion=0` reduced motion · `hold=boss` stop at the incident · `slow=3.5` play one stage at normal speed
 - `tour=1` opens the office tour directly; add `tourstep=4` to start at a given step
 
