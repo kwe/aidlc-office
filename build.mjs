@@ -1,4 +1,4 @@
-// Builds the single-file game: v3.html = src/game.html + bundled three.js office + embedded GLB.
+// Builds the single-file game: v3.html = src/game.html + src/scenarios/*.js + bundled three.js office + embedded GLB.
 // Usage: node build.mjs          (run `npm run assets` first if blender/build_assets.py changed)
 import { build } from 'esbuild';
 import fs from 'node:fs';
@@ -10,8 +10,11 @@ const out = await build({
 });
 const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const glb = fs.readFileSync('blender/out/office.glb').toString('base64');
+// Scenarios are plain script fragments that register themselves on SCENARIOS; the game lists them in SCEN_ORDER.
+const scenarios = fs.readdirSync('src/scenarios').filter(f => f.endsWith('.js')).sort()
+  .map(f => fs.readFileSync('src/scenarios/' + f, 'utf8').replace(/<\/script/gi, '<\\/script')).join('\n');
 let html = fs.readFileSync('src/game.html', 'utf8');
-for (const [token, value] of [['/*__OFFICE_JS__*/', js], ['__OFFICE_GLB__', glb]]) {
+for (const [token, value] of [['/*__SCENARIOS__*/', scenarios], ['/*__OFFICE_JS__*/', js], ['__OFFICE_GLB__', glb]]) {
   if (!html.includes(token)) throw new Error('missing token ' + token);
   html = html.replace(token, () => value);
 }
