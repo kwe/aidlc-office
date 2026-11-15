@@ -65,7 +65,6 @@ const stages={
         {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "FR-1": ["CQ-03", "CQ-10"]'+(orderKept()?', "FR-2": ["CQ-11"]':'')+', "FR-3": ["CQ-10"] }')}],
  pre:[['PRD','A refactor has one requirement that matters: nothing changes for the people on the other side. The work is in saying what "nothing" means.']],
  post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the code scan…']],
- sfail:()=>orderKept()?null:{s:'upstream-coverage',t:'requirements.md never references finding CQ-11 from the code scan: three lenders read only reasons[0].',src:'requirements.md → code-quality-assessment.md:CQ-11',key:'order',ch:'Make reason order a requirement (CQ-11)',fixmsg:'FR-2 added: reasons are returned in today\'s order. Sensor re-run: pass.'},
  after:()=>{if(dv('2.3.freeze')===1)tick(6)},
  finds:()=>{const f=[];
   if(dv('2.3.same')===2)f.push({by:'PLR',t:'"The tests pass" cannot be the definition: CQ-03 and CQ-01 say the tests do not cover this code.',src:'requirements.md:FR-1',fix:'2.3.same',ch:'Define no change as byte-identical responses'});
@@ -74,11 +73,12 @@ const stages={
 
 '3.1':{
  dec:['3.1.quirk'],
- files:[{p:REC+'construction/functional-design/rules.md',b:()=>L(['R-1: every signal is evaluated for every assessment','R-2: reasons are ordered by severity, then by signal registration order'+(orderKept()?'':' <span class="wa">(not a requirement)</span>'),'R-3: ID-VEL-00 replaces ID-VEL-02 when the network check is unavailable','R-4: more than three reasons: '+pk('3.1.quirk',['<b>only the first three are returned</b> (existing behaviour, kept; change tracked as its own intent)','<span class="wa">all are returned (behaviour change)</span>','<span class="no">not specified</span>'])])},
+ files:[{p:REC+'construction/functional-design/rules.md',b:()=>L(['R-1: every signal is evaluated for every assessment','R-2: reasons are ordered by severity, then by signal registration order'+(orderKept()?'':' <span class="wa">(traces to no requirement)</span>'),'R-3: ID-VEL-00 replaces ID-VEL-02 when the network check is unavailable','R-4: more than three reasons: '+pk('3.1.quirk',['<b>only the first three are returned</b> (existing behaviour, kept; change tracked as its own intent)','<span class="wa">all are returned (behaviour change)</span>','<span class="no">not specified</span>'])])},
         {p:REC+'construction/functional-design/functional-spec.md',b:()=>PRE('assess(app):\n  results = '+(parallel()?'await all(signals.map(s => s.evaluate(app)))':'for s in signals: await s.evaluate(app)   # sequential')+'\n  reasons = order(results)'+(dv('3.1.quirk')===0?'\n  return reasons[0:3]                # R-4':'\n  return reasons'))},
         {p:REC+'construction/functional-design/entities.md',opt:1,b:()=>L(['Signal { code, evaluate(app) → Reason | null }','Registry: ordered list of Signals','Reason { code, severity, detail }'])}],
  pre:[['ARC','Functional design for the pipeline. First I write down what the current code does, line by line, so the new code has something to match.'],['ARC','There is behaviour in here that no document mentions.']],
  post:[['ARC','Rules and spec written.'],['ARV','Reviewing the functional design against the current code…']],
+ sfail:()=>orderKept()?null:{s:'traceability',t:'Rule R-2 (reason order) is an ORPHAN in traceability.json: it traces to no requirement. Nothing upstream says that order matters.',src:'traceability.json: R-2 · ORPHAN',key:'order',ch:'Make reason order a requirement',fixmsg:'FR-2 added to the requirements: reasons are returned in today\'s order (CQ-11). R-2 traces to it. Sensor re-run: pass.'},
  finds:()=>dv('3.1.quirk')===1?[{by:'ARV',t:'Returning more than three reasons changes what every lender receives. FR-1 says no behaviour change.',src:'rules.md:R-4',fix:'3.1.quirk',ch:'Keep the three-reason limit; change it separately'}]:dv('3.1.quirk')===2?[{by:'ARV',t:'The three-reason limit is current behaviour and the spec is silent on it. Code generated from this spec will not have it.',src:'rules.md:R-4',fix:'3.1.quirk',ch:'Keep the three-reason limit; change it separately'}]:[]},
 
 '3.5':{
@@ -159,7 +159,7 @@ function incident(D){
     result:{won:'All three waves handled. Lenders got the answers they have always got, from code that is now easy to extend.',rollback:'The incident is over, but the pipeline is out and the 640-line function is back.',breach:'The error budget ran out. A change that was meant to be invisible was the most visible thing at month end.'},
     score:{notified:['Lenders notified','Lenders never notified'],rolled:'Refactor rolled back'},
     why(){const it=[];
-      it.push([ord?'Reason order never moved':'Reason order changed under three lenders',ord?'good':'bad',D['2.3.same']===0?'2.3 defined no change as byte-identical responses.':ord?'The upstream-coverage sensor at 2.3 caught that CQ-11 was missing, and order became a requirement.':scope().sensors?'The sensor flagged CQ-11 at 2.3, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing tied the requirements to CQ-11.`]);
+      it.push([ord?'Reason order never moved':'Reason order changed under three lenders',ord?'good':'bad',D['2.3.same']===0?'2.3 defined no change as byte-identical responses.':ord?'The traceability sensor at 3.1 found the ordering rule with no requirement behind it, and order became one.':noFD?`No Functional Design in the ${scope().n} scope, so the ordering rule was never written down, let alone checked.`:scope().sensors?'The traceability sensor flagged the orphan rule at 3.1, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed the ordering rule had no requirement.`]);
       it.push([trunc?'The three-reason limit survived':'The three-reason limit was lost',trunc?'good':'bad',D['3.1.quirk']===0?'3.1 wrote the quirk down as rule R-4 and kept it.':S.flags.truncFix?'Nobody had written it down, but the side-by-side comparison in 3.6 caught it.':noFD?`No Functional Design in the ${scope().n} scope, and nothing compared old with new on real traffic.`:'3.1 changed or ignored the limit.']);
       it.push([par?'Latency stayed flat under batch load':'p99 became the sum of the signals',par?'good':'bad',D['3.5.exec']===1?(S.flags.parFix?'3.5 built it sequentially, and the timing comparison in 3.6 sent it back.':'3.5 chose sequential evaluation, and nothing measured it.'):'3.5 kept the signals running side by side.']);
       return it},
@@ -169,7 +169,7 @@ function incident(D){
 function debrief(C2,D){
   C2('2.1',D['2.1.golden']===0,D['2.1.golden']===0?'A masked golden set from production made "no behaviour change" testable.':D['2.1.golden']===1?'The refactor had no record of current behaviour beyond a 71% test suite.':'The golden set put 10,000 applicants\' personal data into the repository.');
   C2('2.3',D['2.3.same']===0,D['2.3.same']===0?'Byte-identical responses was a definition lenders could rely on.':'The definition of "no change" left room for a change lenders could see.');
-  if(D['2.3.same']!==0)C2('SENS',!!S.flags.order,S.flags.order?'The upstream-coverage sensor tied the requirements back to CQ-11, and reason order was pinned.':'CQ-11 (three lenders read only the first reason) never reached the requirements.');
+  if(D['2.3.same']!==0&&S.plan.includes('3.1'))C2('SENS',!!S.flags.order,S.flags.order?'The traceability sensor found a design rule with no requirement behind it, and reason order was pinned.':'The ordering rule stayed an orphan: nothing upstream required it.');
   C2('2.3',D['2.3.freeze']===0,D['2.3.freeze']===0?'New signals waited for the pipeline, so one change at a time went through the code.':'ID-VEL-03 and the refactor rewrote the same function at once, and the merge cost most of a day.');
   C2('3.1',truncKept(),D['3.1.quirk']===undefined?(S.flags.truncFix?`The ${scope().n} scope has no Functional Design. The three-reason quirk was caught late, by the comparison in Build and Test.`:`The ${scope().n} scope has no Functional Design, so behaviour that lived only in the code was lost in the rewrite.`):D['3.1.quirk']===0?'Functional Design wrote the three-reason quirk down and kept it.':'The three-reason quirk was changed inside a refactor.');
   if(D['3.5.exec']!==undefined)C2('3.5',D['3.5.exec']===0,D['3.5.exec']===0?'Signals still run side by side, so the refactor cost no latency.':'Sequential evaluation nearly doubled p99.');
@@ -201,8 +201,8 @@ return {
           fixed:'Second run: green. '+[t?'The merge keeps the three-reason limit':null,p?'the signals run side by side again':null].filter(Boolean).join(', and ')+'.'}},
  deploy:{what:'the new pipeline',all:'No blast-radius control: every lender moved to the new pipeline in the same second, and the old path is gone.'},
  addStage:{at:'2.3',add:'3.1',ask:'Functional Design is not in this scope, but this change rewrites the code that assembles every response. Add it?',sub:'Nobody has written down what the current code does, quirks included.'},
- traceGap:()=>S.ran.has('2.3')&&!orderKept(),
- humanSensor:'2.3',
+ traceGap:()=>S.ran.has('3.1')&&!orderKept(),
+ humanSensor:'3.1',
  badge:{ic:'🧬',n:'Same Bytes Out',d:'Capture a masked golden set, define no change as byte-identical, and prove it side by side.',test:()=>S.dec['2.1.golden']===0&&S.dec['2.3.same']===0&&S.dec['3.6.compare']===0},
  incident,debrief,
 };

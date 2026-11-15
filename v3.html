@@ -335,7 +335,7 @@ kbd{font:600 11px var(--mono);padding:1px 5px;border:1px solid var(--line2);bord
 .rc .rt{font:600 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--rc)}
 .profs{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:8px}
 .pc .ptag{font-weight:600;color:var(--ink)}
-#scens{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (min-width:1100px){#scens{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .pc .cnt{white-space:nowrap}.pc .pt b{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
 .pc{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel2) 70%,transparent);transition:border-color .15s,box-shadow .2s}
 .pc:hover{border-color:var(--accent)}
@@ -4903,11 +4903,10 @@ const stages={
 
 '2.3':{
  dec:['2.3.fixed','2.3.data','2.3.tell'],
- files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Defect')+P('ID-VEL-02 fires for identities seen at one lender when that lender retries <code>/assess</code>. '+SRC('ticket LND-2291, Kestrel Finance'))+H('Functional')+L(['FR-1: '+pk('2.3.fixed',['each lender counts once per identity per 14-day window, however many calls it makes','<span class="wa">repeat calls within 5 minutes of the first are ignored</span>','<span class="no">the ID-VEL-02 threshold rises from 3 lenders to 5</span>']),'FR-2: the 11,400 identities with inflated counts are '+pk('2.3.data',['recomputed from the sighting log','<span class="wa">left to expire with the 14-day window</span>','<span class="no">deleted</span>']),'FR-3: lenders '+pk('2.3.tell',['each receive the IDs of their affected assessments','<span class="wa">see a general notice on the status page</span>','<span class="no">are not told</span>']),S.flags.cq08?'<b>FR-4: the nightly reconciliation job writes through the same distinct-lender path</b> '+SRC('CQ-08'):null])+H('How we will know')+P(dv('2.3.fixed')===0?'Kestrel\'s recorded retry traffic, replayed against the build: no flags for single-lender identities.':'<span class="wa">No acceptance test is named.</span>')},
-        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "FR-1": ["LND-2291", "CQ-07"], "FR-2": ["CQ-07"], "FR-3": ["LND-2291"]'+(S.flags.cq08?', "FR-4": ["CQ-08"]':'')+' }')}],
+ files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Defect')+P('ID-VEL-02 fires for identities seen at one lender when that lender retries <code>/assess</code>. '+SRC('ticket LND-2291, Kestrel Finance'))+H('Functional')+L(['FR-1: '+pk('2.3.fixed',['each lender counts once per identity per 14-day window, however many calls it makes','<span class="wa">repeat calls within 5 minutes of the first are ignored</span>','<span class="no">the ID-VEL-02 threshold rises from 3 lenders to 5</span>']),'FR-2: the 11,400 identities with inflated counts are '+pk('2.3.data',['recomputed from the sighting log','<span class="wa">left to expire with the 14-day window</span>','<span class="no">deleted</span>']),'FR-3: lenders '+pk('2.3.tell',['each receive the IDs of their affected assessments','<span class="wa">see a general notice on the status page</span>','<span class="no">are not told</span>']),stale()?null:'FR-4: the nightly reconciliation job writes through the same distinct-lender path '+SRC('CQ-08')])+H('How we will know')+P(dv('2.3.fixed')===0?'Kestrel\'s recorded retry traffic, replayed against the build: no flags for single-lender identities.':'<span class="wa">No acceptance test is named.</span>')},
+        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "FR-1": ["LND-2291", "CQ-07"], "FR-2": ["CQ-07"], "FR-3": ["LND-2291"]'+(stale()?'':', "FR-4": ["CQ-08"]')+' }')}],
  pre:[['PRD','A bugfix needs short requirements: what correct behaviour is, what happens to the damage already done, and who needs to know.'],['PRD','Three questions need humans.']],
  post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the ticket and the code scan…']],
- sfail:()=>stale()||S.flags.cq08?null:{s:'upstream-coverage',t:'requirements.md never references finding CQ-08 from the code scan: the nightly reconciliation job also writes to the counter.',src:'requirements.md → code-quality-assessment.md:CQ-08',key:'cq08',ch:'Cover the reconciliation job (CQ-08)',fixmsg:'FR-4 added: the reconciliation job writes through the same distinct-lender path. Sensor re-run: pass.'},
  finds:()=>{const f=[];
   if(dv('2.3.fixed')===1)f.push({by:'PLR',t:'"Within 5 minutes" describes one retry pattern, not the rule. A lender that re-checks an applicant the next day is still counted twice.',src:'requirements.md:FR-1',fix:'2.3.fixed',ch:'Define fixed as one count per lender'});
   if(dv('2.3.fixed')===2)f.push({by:'PLR',t:'Raising the threshold changes what ID-VEL-02 detects. Four-lender rings stop being flagged, and the counting is still wrong.',src:'requirements.md:FR-1',fix:'2.3.fixed',ch:'Define fixed as one count per lender'});
@@ -4926,12 +4925,12 @@ const stages={
  finds:()=>dv('3.1.edge')===1?[{by:'ARV',t:'Counting two products as two sightings contradicts FR-1: one lender would again be counted twice.',src:'rules.md:R-1b',fix:'3.1.edge',ch:'Count each lender once'}]:[]},
 
 '3.5':{
- files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>src/network/counter.ts</code>: '+fixTxt(),'<code>jobs/reconcile.ts</code>: '+(S.flags.cq08?'write through the same path '+SRC('FR-4'):stale()?'<span class="muted">not known to this plan</span>':'<span class="wa">not in the requirements; left as it is</span>'),'<code>jobs/recompute-counts.ts</code>: '+(dv('2.3.data')===0?'new one-off job that rebuilds each affected counter from the sighting log '+SRC('FR-2'):'<span class="muted">none</span>'),'Edge rule (one lender, two products): '+pkd('3.1.edge',['counts once','<span class="wa">counts twice</span>'],'not written down: Functional Design is not in this scope, so the Developer follows FR-1')])},
+ files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>src/network/counter.ts</code>: '+fixTxt(),'<code>jobs/reconcile.ts</code>: '+(S.flags.cq08?'write through the same path '+SRC('FR-4'):stale()?'<span class="muted">not known to this plan</span>':'<span class="wa">FR-4 asks for this; the plan does not cover it</span>'),'<code>jobs/recompute-counts.ts</code>: '+(dv('2.3.data')===0?'new one-off job that rebuilds each affected counter from the sighting log '+SRC('FR-2'):'<span class="muted">none</span>'),'Edge rule (one lender, two products): '+pkd('3.1.edge',['counts once','<span class="wa">counts twice</span>'],'not written down: Functional Design is not in this scope, so the Developer follows FR-1')])},
         {p:REC+'construction/code-generation/code-summary.md',b:()=>T(['Change','Files','Tests'],[['network counter',5,38],S.flags.cq08?['reconcile job',2,9]:null,dv('2.3.data')===0?['recompute job',3,17]:null,dv('3.5.sibling')===1?['<span class="wa">rules/vel01.ts (not in the requirements)</span>',4,0]:null])+P('Same counting pattern found in ID-VEL-01: '+pk('3.5.sibling',['recorded in the intent backlog as its own bugfix','<span class="wa">changed in this intent</span>','<span class="no">left, with no ticket</span>'],0))},
         {p:REC+'construction/code-generation/unit-test-instructions.md',opt:1,b:()=>PRE('npm test -- --coverage\nnpm run replay -- fixtures/kestrel-retries.ndjson')}],
  pre:[['DEV','Drafting the code plan. No code is written until the plan is approved.']],
  post:[['DEV','Change generated. Writing <code>code-summary.md</code>.'],['ARV','Reviewing the diff against the requirements…']],
- sfail:()=>({s:'traceability',t:'FR-1 has no test mapped to it in traceability.json.',src:'traceability.json: FR-1',auto:'DEV',fixmsg:'FR-1 mapped to counter.retry.test.ts. Sensor re-run: pass.'}),
+ sfail:()=>stale()||S.flags.cq08?null:{s:'traceability',t:'FR-4 (the reconciliation job writes through the same path) is a GAP in traceability.json: no code change and no test is mapped to it.',src:'traceability.json: FR-4 · GAP',key:'cq08',ch:'Build and test FR-4 (the reconcile job)',fixmsg:'<code>jobs/reconcile.ts</code> now writes through the distinct-lender path, with a test. FR-4 is mapped. Sensor re-run: pass.'},
  finds:()=>dv('3.5.sibling')===1?[{by:'ARV',t:'The diff changes rules/vel01.ts. No requirement in this intent covers ID-VEL-01, and no test was added for it.',src:'rules/vel01.ts',fix:'3.5.sibling',ch:'Take ID-VEL-01 out and record it in the backlog'}]:dv('3.5.sibling')===2?[{by:'ARV',t:'A second copy of the same defect was found and nothing records it.',src:'code-summary.md:L5',fix:'3.5.sibling',ch:'Record the ID-VEL-01 defect in the backlog'}]:[]},
 
 '3.6':{
@@ -4991,8 +4990,8 @@ function incident(D){
      rc:data===2?'The counters for 11,400 identities were deleted (2.3), and the genuine sightings went with them.':order?'The recompute ran before the code fix (4.1), so retries inflated the corrected counts again.':'The inflated counts were left to age out (2.3). They have days still to run.',
      auto:staleOk,autoLog:'The recompute job rebuilt these counters from the sighting log on deploy day. Nothing stale is left to flag.'},
     {id:'recon',n:'Counts jump overnight',sev:70,chart:'err',sym:'At 02:00 the counts rose for 3,100 identities that had no new applications.',
-     rc:stale()?'A nightly reconciliation job also writes to the counter. The stale codekb (2.1) never showed it.':'The nightly reconciliation job also writes to the counter (CQ-08), and the requirements never covered it.',
-     auto:reconOk,autoLog:'FR-4 moved the reconciliation job onto the distinct-lender write. It ran at 02:00 and inflated nothing.'},
+     rc:stale()?'A nightly reconciliation job also writes to the counter. The stale codekb (2.1) never showed it.':'The nightly reconciliation job also writes to the counter. FR-4 said to fix it, and no code was ever written for FR-4.',
+     auto:reconOk,autoLog:'The reconciliation job was moved onto the distinct-lender write (FR-4). It ran at 02:00 and inflated nothing.'},
   ];
   const abil=[
    {id:'investigate',n:'Investigate',ag:'OPS',role:'ops',cast:()=>D['4.4.alarm']===0?1:2,cd:0,util:1,d:'Read the flag-rate panels and traces to find the cause.',src:()=>D['4.4.alarm']===0?'4.4: flag rate per lender is on a dashboard (fast)':'always available'},
@@ -5019,7 +5018,7 @@ function incident(D){
       it.push([`Wave 1 was <b>${W1.n.toLowerCase()}</b>`,kind==='retry'?'good':'bad',kind==='retry'?(D['2.3.fixed']===0?'2.3 defined fixed as one count per lender, so month-end retries were only load.':'The replay in 3.6 failed the 5-minute rule and forced the real fix before it shipped.'):kind==='next'?'2.3 defined fixed as "ignore repeats within 5 minutes", and nothing replayed real traffic to show that it was not enough.':'2.3 raised the threshold instead of fixing the count.']);
       if(sib)it.push(['Severity +15: ID-VEL-01 changed without a test','bad','3.5 widened the fix to a second signal that had no requirement in this intent.']);
       it.push([staleOk?'Stale counters were already repaired':data===2?'Deleted counters hid a real ring':'Stale counters flagged honest applicants again',staleOk?'good':'bad',data===0?(order?'4.1 ran the recompute before the code fix.':'2.3 chose to recompute, and 4.1 shipped the code first.'):data===1?'2.3 left the inflated counts to age out.':'2.3 deleted the counters.']);
-      it.push([reconOk?'The reconcile job had been fixed too':'The reconcile job re-inflated the counts',reconOk?'good':'bad',reconOk?'The upstream-coverage sensor at 2.3 caught that CQ-08 was missing, and someone asked for the fix.':stale()?'2.1 trusted a stale codekb, so the second writer was never found.':scope().sensors?'The upstream-coverage sensor flagged CQ-08 at 2.3, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed the requirements had skipped CQ-08.`]);
+      it.push([reconOk?'The reconcile job had been fixed too':'The reconcile job re-inflated the counts',reconOk?'good':'bad',reconOk?'The traceability sensor at 3.5 caught that FR-4 had no code behind it, and someone asked for the fix.':stale()?'2.1 trusted a stale codekb, so the second writer was never found.':scope().sensors?'The traceability sensor flagged FR-4 at 3.5, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed that FR-4 was never built.`]);
       return it},
   };
 }
@@ -5029,7 +5028,7 @@ function debrief(C2,D){
   C2('2.3',D['2.3.fixed']===0,D['2.3.fixed']===0?'"Each lender counts once" was a definition of fixed that a test could prove.':D['2.3.fixed']===1?'"Ignore repeats within 5 minutes" fixed one retry pattern, not the rule.':'Raising the threshold hid the bug and weakened the signal.');
   C2('2.3',D['2.3.data']===0,D['2.3.data']===0?'Recomputing the counts cleared the applicants the bug had already flagged.':'The code was fixed and the damaged data was not.');
   C2('2.3',D['2.3.tell']===0,D['2.3.tell']===0?'Lenders got the IDs of their affected assessments and could correct their own decisions.':'Lenders could not tell which of their decisions rested on a wrong flag.');
-  if(!stale())C2('SENS',!!S.flags.cq08,S.flags.cq08?'The upstream-coverage sensor caught a finding the requirements had skipped (CQ-08).':'The reconciliation job (CQ-08) never made it into the requirements.');
+  if(!stale())C2('SENS',!!S.flags.cq08,S.flags.cq08?'The traceability sensor caught a requirement with no code behind it (FR-4, the reconciliation job).':'FR-4 (the reconciliation job) was written down and never built.');
   if(D['3.5.sibling']!==undefined)C2('3.5',D['3.5.sibling']===0,D['3.5.sibling']===0?'The same defect in ID-VEL-01 went to the backlog as its own bugfix.':D['3.5.sibling']===1?'The fix grew to cover a second signal that nobody had specified or tested.':'A second copy of the defect was found and then forgotten.');
   if(D['3.6.proof']!==undefined)C2('3.6',D['3.6.proof']===0,D['3.6.proof']===0?'Replaying the traffic that exposed the bug made Build and Test real evidence.':'The fix shipped on the same unit tests that had passed when the bug shipped.');
   if(D['4.1.order']!==undefined)C2('4.1',D['4.1.order']===0,D['4.1.order']===0?'Code first, then recompute: the corrected data stayed correct.':'Recomputing before the code fix let retries undo the correction.');
@@ -5057,8 +5056,8 @@ return {
   return {why:dv('2.3.fixed')===1?'Replay failure: 212 of Kestrel\'s applicants are still flagged. Their lender re-checked them the next morning, well outside the 5-minute window.':'Replay failure: 38 single-lender applicants are still flagged. Their gateway retried five times or more, so they clear even the raised threshold.',
           fixed:'Second run: green. The counter now stores the set of lenders seen, so no number of repeats can raise it.'}},
  deploy:{what:'the counter fix',all:'No blast-radius control: every lender got the new counter in the same second.'},
- traceGap:()=>S.ran.has('2.3')&&!stale()&&!S.flags.cq08,
- humanSensor:'2.3',
+ traceGap:()=>S.ran.has('3.5')&&!stale()&&!S.flags.cq08,
+ humanSensor:'3.5',
  badge:{ic:'🧮',n:'Cause, Not Symptom',d:'Define fixed as the behaviour, prove it with the traffic that broke it, and repair the data.',test:()=>S.dec['2.3.fixed']===0&&S.dec['3.6.proof']===0&&S.dec['2.3.data']===0},
  incident,debrief,
 };
@@ -5354,7 +5353,7 @@ return {
   return {why:'Game day failure: a seeded ring split across the two regions never fires in Frankfurt. '+[k?'Each region computes a different fingerprint for the same person':null,c?'sightings written in one region are overwritten by the other':null].filter(Boolean).join(', and ')+'.',
           fixed:'Second run: green. '+[k?'Both regions use a replica of one key':null,c?'each region writes its own counter item':null].filter(Boolean).join(', and ')+'.'}},
  deploy:{what:'the two-region setup',all:'No blast-radius control: every lender moved onto untried routing at once.'},
- addStage:{at:'2.3',add:'3.3',ask:'NFR Design is not in this scope, but two regions are about to write to the same counters. Add it?',sub:'Nobody has designed how two regions write the same counters.'},
+ addStage:{at:'2.3',add:'3.2',ask:'NFR Requirements is not in this scope, but this whole change exists to meet a recovery target. Add it?',sub:'Nobody has decided how the regions share the work, or who fails over.'},
  phaseChecks:from=>from===3?[['Replacements and policy failures block a merge in CI',S.dec['3.7.gates']!==1],['Every NFR maps to a design element',!!S.flags.lag]]:[],
  traceGap:()=>S.ran.has('3.3')&&!S.flags.lag,
  humanSensor:'3.3',
@@ -5493,21 +5492,22 @@ const stages={
 
 '1.6':{
  dec:['1.6.first'],
- files:[{p:REC+'ideation/rough-mockups/wireframes.md',b:()=>PRE(pk('1.6.first',[`┌─ Welcome to Aegle Starter ───────────────────┐
-│ Your sandbox key:  <span class="s">sk_test_4f9a…</span>   [copy]     │
-│                                              │
-│ $ curl https://sandbox.aegle.example/assess \\│
-│     -H "Authorization: Bearer sk_test_4f9a…" │
-│     -d @sample-application.json              │
-│ <span class="k">→ 200</span>  reasons: [ ID-VEL-02 … ]              │
-└──────────────────────────────────────────────┘`,`┌─ API reference ──────────────────────────────┐
-│ Authentication · Errors · POST /assess · …   │
-│ <span class="wa">(42 pages; "Getting started" is page 7)</span>     │
-└──────────────────────────────────────────────┘`,`┌─ Tell us about your company ─────────────────┐
-│ Legal name ______   Monthly volume ______    │
-│ Use case   ______   <span class="wa">(11 fields, all required)</span>│
-│                              [ Continue ]    │
-└──────────────────────────────────────────────┘`]))},
+ files:[{p:REC+'ideation/rough-mockups/wireframes.md',b:()=>PRE(pk('1.6.first',[`┌─ Welcome to Aegle Starter ──────────┐
+│ Sandbox key: <span class="s">sk_test_4f9a…</span> [copy]   │
+│                                     │
+│ $ curl sandbox.aegle.example/assess │
+│    -H "Authorization: Bearer $KEY"  │
+│    -d @sample-application.json      │
+│ <span class="k">→ 200</span>  reasons: [ ID-VEL-02 … ]     │
+└─────────────────────────────────────┘`,`┌─ API reference ─────────────────────┐
+│ Authentication · Errors · /assess … │
+│ <span class="wa">42 pages. "Getting started" is p. 7</span> │
+└─────────────────────────────────────┘`,`┌─ Tell us about your company ────────┐
+│ Legal name ______  Volume ______    │
+│ Use case   ______                   │
+│ <span class="wa">11 fields, all required</span>             │
+│                       [ Continue ]  │
+└─────────────────────────────────────┘`]))},
         {p:REC+'ideation/rough-mockups/user-flow.md',opt:1,b:()=>L(['Sign up with a business email','Verify the email','First screen','First call to the sandbox','Request go-live → licence check'])}],
  pre:[['DSN','Sketching the first screen a developer sees after signing up.']],
  post:[['DSN','Wireframes and user flow written.'],['PLR','Reviewing the mockups against the success measure…']],
@@ -5826,7 +5826,6 @@ const stages={
         {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "FR-1": ["CQ-03", "CQ-10"]'+(orderKept()?', "FR-2": ["CQ-11"]':'')+', "FR-3": ["CQ-10"] }')}],
  pre:[['PRD','A refactor has one requirement that matters: nothing changes for the people on the other side. The work is in saying what "nothing" means.']],
  post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the code scan…']],
- sfail:()=>orderKept()?null:{s:'upstream-coverage',t:'requirements.md never references finding CQ-11 from the code scan: three lenders read only reasons[0].',src:'requirements.md → code-quality-assessment.md:CQ-11',key:'order',ch:'Make reason order a requirement (CQ-11)',fixmsg:'FR-2 added: reasons are returned in today\'s order. Sensor re-run: pass.'},
  after:()=>{if(dv('2.3.freeze')===1)tick(6)},
  finds:()=>{const f=[];
   if(dv('2.3.same')===2)f.push({by:'PLR',t:'"The tests pass" cannot be the definition: CQ-03 and CQ-01 say the tests do not cover this code.',src:'requirements.md:FR-1',fix:'2.3.same',ch:'Define no change as byte-identical responses'});
@@ -5835,11 +5834,12 @@ const stages={
 
 '3.1':{
  dec:['3.1.quirk'],
- files:[{p:REC+'construction/functional-design/rules.md',b:()=>L(['R-1: every signal is evaluated for every assessment','R-2: reasons are ordered by severity, then by signal registration order'+(orderKept()?'':' <span class="wa">(not a requirement)</span>'),'R-3: ID-VEL-00 replaces ID-VEL-02 when the network check is unavailable','R-4: more than three reasons: '+pk('3.1.quirk',['<b>only the first three are returned</b> (existing behaviour, kept; change tracked as its own intent)','<span class="wa">all are returned (behaviour change)</span>','<span class="no">not specified</span>'])])},
+ files:[{p:REC+'construction/functional-design/rules.md',b:()=>L(['R-1: every signal is evaluated for every assessment','R-2: reasons are ordered by severity, then by signal registration order'+(orderKept()?'':' <span class="wa">(traces to no requirement)</span>'),'R-3: ID-VEL-00 replaces ID-VEL-02 when the network check is unavailable','R-4: more than three reasons: '+pk('3.1.quirk',['<b>only the first three are returned</b> (existing behaviour, kept; change tracked as its own intent)','<span class="wa">all are returned (behaviour change)</span>','<span class="no">not specified</span>'])])},
         {p:REC+'construction/functional-design/functional-spec.md',b:()=>PRE('assess(app):\n  results = '+(parallel()?'await all(signals.map(s => s.evaluate(app)))':'for s in signals: await s.evaluate(app)   # sequential')+'\n  reasons = order(results)'+(dv('3.1.quirk')===0?'\n  return reasons[0:3]                # R-4':'\n  return reasons'))},
         {p:REC+'construction/functional-design/entities.md',opt:1,b:()=>L(['Signal { code, evaluate(app) → Reason | null }','Registry: ordered list of Signals','Reason { code, severity, detail }'])}],
  pre:[['ARC','Functional design for the pipeline. First I write down what the current code does, line by line, so the new code has something to match.'],['ARC','There is behaviour in here that no document mentions.']],
  post:[['ARC','Rules and spec written.'],['ARV','Reviewing the functional design against the current code…']],
+ sfail:()=>orderKept()?null:{s:'traceability',t:'Rule R-2 (reason order) is an ORPHAN in traceability.json: it traces to no requirement. Nothing upstream says that order matters.',src:'traceability.json: R-2 · ORPHAN',key:'order',ch:'Make reason order a requirement',fixmsg:'FR-2 added to the requirements: reasons are returned in today\'s order (CQ-11). R-2 traces to it. Sensor re-run: pass.'},
  finds:()=>dv('3.1.quirk')===1?[{by:'ARV',t:'Returning more than three reasons changes what every lender receives. FR-1 says no behaviour change.',src:'rules.md:R-4',fix:'3.1.quirk',ch:'Keep the three-reason limit; change it separately'}]:dv('3.1.quirk')===2?[{by:'ARV',t:'The three-reason limit is current behaviour and the spec is silent on it. Code generated from this spec will not have it.',src:'rules.md:R-4',fix:'3.1.quirk',ch:'Keep the three-reason limit; change it separately'}]:[]},
 
 '3.5':{
@@ -5920,7 +5920,7 @@ function incident(D){
     result:{won:'All three waves handled. Lenders got the answers they have always got, from code that is now easy to extend.',rollback:'The incident is over, but the pipeline is out and the 640-line function is back.',breach:'The error budget ran out. A change that was meant to be invisible was the most visible thing at month end.'},
     score:{notified:['Lenders notified','Lenders never notified'],rolled:'Refactor rolled back'},
     why(){const it=[];
-      it.push([ord?'Reason order never moved':'Reason order changed under three lenders',ord?'good':'bad',D['2.3.same']===0?'2.3 defined no change as byte-identical responses.':ord?'The upstream-coverage sensor at 2.3 caught that CQ-11 was missing, and order became a requirement.':scope().sensors?'The sensor flagged CQ-11 at 2.3, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing tied the requirements to CQ-11.`]);
+      it.push([ord?'Reason order never moved':'Reason order changed under three lenders',ord?'good':'bad',D['2.3.same']===0?'2.3 defined no change as byte-identical responses.':ord?'The traceability sensor at 3.1 found the ordering rule with no requirement behind it, and order became one.':noFD?`No Functional Design in the ${scope().n} scope, so the ordering rule was never written down, let alone checked.`:scope().sensors?'The traceability sensor flagged the orphan rule at 3.1, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed the ordering rule had no requirement.`]);
       it.push([trunc?'The three-reason limit survived':'The three-reason limit was lost',trunc?'good':'bad',D['3.1.quirk']===0?'3.1 wrote the quirk down as rule R-4 and kept it.':S.flags.truncFix?'Nobody had written it down, but the side-by-side comparison in 3.6 caught it.':noFD?`No Functional Design in the ${scope().n} scope, and nothing compared old with new on real traffic.`:'3.1 changed or ignored the limit.']);
       it.push([par?'Latency stayed flat under batch load':'p99 became the sum of the signals',par?'good':'bad',D['3.5.exec']===1?(S.flags.parFix?'3.5 built it sequentially, and the timing comparison in 3.6 sent it back.':'3.5 chose sequential evaluation, and nothing measured it.'):'3.5 kept the signals running side by side.']);
       return it},
@@ -5930,7 +5930,7 @@ function incident(D){
 function debrief(C2,D){
   C2('2.1',D['2.1.golden']===0,D['2.1.golden']===0?'A masked golden set from production made "no behaviour change" testable.':D['2.1.golden']===1?'The refactor had no record of current behaviour beyond a 71% test suite.':'The golden set put 10,000 applicants\' personal data into the repository.');
   C2('2.3',D['2.3.same']===0,D['2.3.same']===0?'Byte-identical responses was a definition lenders could rely on.':'The definition of "no change" left room for a change lenders could see.');
-  if(D['2.3.same']!==0)C2('SENS',!!S.flags.order,S.flags.order?'The upstream-coverage sensor tied the requirements back to CQ-11, and reason order was pinned.':'CQ-11 (three lenders read only the first reason) never reached the requirements.');
+  if(D['2.3.same']!==0&&S.plan.includes('3.1'))C2('SENS',!!S.flags.order,S.flags.order?'The traceability sensor found a design rule with no requirement behind it, and reason order was pinned.':'The ordering rule stayed an orphan: nothing upstream required it.');
   C2('2.3',D['2.3.freeze']===0,D['2.3.freeze']===0?'New signals waited for the pipeline, so one change at a time went through the code.':'ID-VEL-03 and the refactor rewrote the same function at once, and the merge cost most of a day.');
   C2('3.1',truncKept(),D['3.1.quirk']===undefined?(S.flags.truncFix?`The ${scope().n} scope has no Functional Design. The three-reason quirk was caught late, by the comparison in Build and Test.`:`The ${scope().n} scope has no Functional Design, so behaviour that lived only in the code was lost in the rewrite.`):D['3.1.quirk']===0?'Functional Design wrote the three-reason quirk down and kept it.':'The three-reason quirk was changed inside a refactor.');
   if(D['3.5.exec']!==undefined)C2('3.5',D['3.5.exec']===0,D['3.5.exec']===0?'Signals still run side by side, so the refactor cost no latency.':'Sequential evaluation nearly doubled p99.');
@@ -5962,8 +5962,8 @@ return {
           fixed:'Second run: green. '+[t?'The merge keeps the three-reason limit':null,p?'the signals run side by side again':null].filter(Boolean).join(', and ')+'.'}},
  deploy:{what:'the new pipeline',all:'No blast-radius control: every lender moved to the new pipeline in the same second, and the old path is gone.'},
  addStage:{at:'2.3',add:'3.1',ask:'Functional Design is not in this scope, but this change rewrites the code that assembles every response. Add it?',sub:'Nobody has written down what the current code does, quirks included.'},
- traceGap:()=>S.ran.has('2.3')&&!orderKept(),
- humanSensor:'2.3',
+ traceGap:()=>S.ran.has('3.1')&&!orderKept(),
+ humanSensor:'3.1',
  badge:{ic:'🧬',n:'Same Bytes Out',d:'Capture a masked golden set, define no change as byte-identical, and prove it side by side.',test:()=>S.dec['2.1.golden']===0&&S.dec['2.3.same']===0&&S.dec['3.6.compare']===0},
  incident,debrief,
 };
@@ -6037,15 +6037,14 @@ const stages={
 
 '2.3':{
  dec:['2.3.done','2.3.tell'],
- files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Advisory')+P('AEG-SEC-014 · HIGH. A CI access key appeared in a public build log. It could call the key that turns identities into fingerprints.')+H('Security requirements')+L(['SR-1: the leaked credential is revoked <span class="ok">(done 09:12)</span>','SR-2: key policy: '+pk('2.3.done',['usable only by named roles','usable only by named roles','<span class="no">unchanged</span>']),'SR-3: key rotation: '+pk('2.3.done',['rotated in this patch','<span class="wa">left for the yearly schedule</span>','<span class="no">none</span>']),'SR-4: evidence: '+pk('2.3.done',['every use of the key from 3 to 9 December accounted for','<span class="muted">none required</span>','<span class="muted">none required</span>']),'SR-5: lenders: '+pk('2.3.tell',['told today, inside the 72-hour window','<span class="wa">told once the patch is live</span>','<span class="no">not told</span>']),S.flags.fourth?'<b>SR-6: the fraud-ops notebook gets its own role and its own scoped grant</b> '+SRC('SEC-4'):null])},
-        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "SR-2": ["SEC-1", "SEC-2"], "SR-3": ["AEG-SEC-014"], "SR-5": ["DSA §7.1"]'+(S.flags.fourth?', "SR-6": ["SEC-4"]':'')+' }')}],
+ files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Advisory')+P('AEG-SEC-014 · HIGH. A CI access key appeared in a public build log. It could call the key that turns identities into fingerprints.')+H('Non-functional: security')+L(['NFR-1: the leaked credential is revoked <span class="ok">(done 09:12)</span>','NFR-2: key policy: '+pk('2.3.done',['usable only by named roles','usable only by named roles','<span class="no">unchanged</span>']),'NFR-3: key rotation: '+pk('2.3.done',['rotated in this patch','<span class="wa">left for the yearly schedule</span>','<span class="no">none</span>']),'NFR-4: evidence: '+pk('2.3.done',['every use of the key from 3 to 9 December accounted for','<span class="muted">none required</span>','<span class="muted">none required</span>']),'NFR-5: lenders: '+pk('2.3.tell',['told today, inside the 72-hour window','<span class="wa">told once the patch is live</span>','<span class="no">not told</span>']),blindScan()?null:'NFR-6: the fraud-ops notebook gets its own role and its own scoped grant '+SRC('SEC-4')])},
+        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "NFR-2": ["SEC-1", "SEC-2"], "NFR-3": ["AEG-SEC-014"], "NFR-5": ["DSA §7.1"]'+(blindScan()?'':', "NFR-6": ["SEC-4"]')+' }')}],
  pre:[['PRD','Writing down what "patched" means, and who has to be told. Two questions need humans.']],
  post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the advisory…']],
- sfail:()=>blindScan()||S.flags.fourth?null:{s:'upstream-coverage',t:'requirements.md never references finding SEC-4 from the code scan: a fourth caller uses the key from outside the repository.',src:'requirements.md → code-quality-assessment.md:SEC-4',key:'fourth',ch:'Cover the fraud-ops notebook (SEC-4)',fixmsg:'SR-6 added: the notebook gets its own role and a scoped grant. Sensor re-run: pass.'},
  finds:()=>{const f=[];
-  if(dv('2.3.done')===1)f.push({by:'PLR',t:'Without rotation, anything computed with the key during the six-day exposure stays valid until next year.',src:'requirements.md:SR-3',fix:'2.3.done',ch:'Include key rotation in the patch'});
-  if(dv('2.3.done')===2)f.push({by:'PLR',t:'Revoking one credential leaves SEC-1 open: any CI role can still use the key.',src:'requirements.md:SR-2',fix:'2.3.done',ch:'Restrict the key and rotate it'});
-  if(dv('2.3.tell')===2)f.push({by:'PLR',t:'DSA §7.1 requires notice of the event within 72 hours, whether or not harm is shown.',src:'requirements.md:SR-5',fix:'2.3.tell',ch:'Notify all 40 lenders today'});
+  if(dv('2.3.done')===1)f.push({by:'PLR',t:'Without rotation, anything computed with the key during the six-day exposure stays valid until next year.',src:'requirements.md:NFR-3',fix:'2.3.done',ch:'Include key rotation in the patch'});
+  if(dv('2.3.done')===2)f.push({by:'PLR',t:'Revoking one credential leaves SEC-1 open: any CI role can still use the key.',src:'requirements.md:NFR-2',fix:'2.3.done',ch:'Restrict the key and rotate it'});
+  if(dv('2.3.tell')===2)f.push({by:'PLR',t:'DSA §7.1 requires notice of the event within 72 hours, whether or not harm is shown.',src:'requirements.md:NFR-5',fix:'2.3.tell',ch:'Notify all 40 lenders today'});
   return f}},
 
 '3.2':{
@@ -6057,17 +6056,17 @@ const stages={
  post:[['ARC','Writing the security and performance requirements.'],['ARV','Reviewing the NFR requirements…']],
  finds:()=>{const f=[];
   if(dv('3.2.rotate')===1)f.push({by:'ARV',t:'A hard cutover orphans every counter. ID-VEL-02 cannot see any ring that began in the last 14 days.',src:'security-requirements.md:L2',fix:'3.2.rotate',ch:'Rotate through a dual-key window'});
-  if(dv('3.2.rotate')===2)f.push({by:'ARV',t:'Requirement SR-3 says the key is rotated in this patch. This stage says it is not.',src:'security-requirements.md:L2',fix:'3.2.rotate',ch:'Rotate through a dual-key window'});
+  if(dv('3.2.rotate')===2)f.push({by:'ARV',t:'Requirement NFR-3 says the key is rotated in this patch. This stage says it is not.',src:'security-requirements.md:L2',fix:'3.2.rotate',ch:'Rotate through a dual-key window'});
   if(dv('3.2.latency')===1)f.push({by:'ARV',t:'190 ms breaks the network-check SLO for 14 days. Caching data keys per request avoids it.',src:'performance-requirements.md:L2',fix:'3.2.latency',ch:'Cache data keys and stay inside 150 ms'});
   return f}},
 
 '3.5':{
- files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>infra/kms.ts</code>: '+(dv('2.3.done')===2?'<span class="no">no change</span>':'key policy names the allowed roles and denies everyone else'),'<code>infra/constructs/ci-role.ts</code>: '+pk('3.5.grant',['grant scoped in this stack; shared construct goes to the backlog','<span class="wa">shared construct rewritten (11 stacks redeploy)</span>',S.flags.grantFix?'grant scoped in this stack (after the negative test failed)':'<span class="no">wildcard kept; explicit deny for the CI role</span>'],0),'<code>src/fingerprint/</code>: '+rotTxt()+(dv('2.3.done')===0&&dv('3.2.rotate')===undefined?' <span class="wa">(no rotation requirement was written: NFR Requirements is not in this scope)</span>':''),'Fraud-ops notebook: '+(S.flags.fourth?'own role, own scoped grant '+SRC('SR-6'):blindScan()?'<span class="muted">not known to this plan</span>':'<span class="wa">not in the requirements; no grant planned</span>')])},
+ files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>infra/kms.ts</code>: '+(dv('2.3.done')===2?'<span class="no">no change</span>':'key policy names the allowed roles and denies everyone else'),'<code>infra/constructs/ci-role.ts</code>: '+pk('3.5.grant',['grant scoped in this stack; shared construct goes to the backlog','<span class="wa">shared construct rewritten (11 stacks redeploy)</span>',S.flags.grantFix?'grant scoped in this stack (after the negative test failed)':'<span class="no">wildcard kept; explicit deny for the CI role</span>'],0),'<code>src/fingerprint/</code>: '+rotTxt()+(dv('2.3.done')===0&&dv('3.2.rotate')===undefined?' <span class="wa">(no rotation requirement was written: NFR Requirements is not in this scope)</span>':''),'Fraud-ops notebook: '+(S.flags.fourth?'own role, own scoped grant '+SRC('NFR-6'):blindScan()?'<span class="muted">not known to this plan</span>':'<span class="wa">NFR-6 asks for this; the plan does not cover it</span>')])},
         {p:REC+'construction/code-generation/code-summary.md',b:()=>T(['Change','Files','Tests'],[['key policy and grants',4,12],rotation()==='none'?null:['key rotation ('+rotation()+')',5,19],S.flags.fourth?['notebook role',2,6]:null,dv('3.5.grant')===1?['<span class="wa">shared CI construct (11 stacks)</span>',9,4]:null])},
         {p:REC+'construction/code-generation/unit-test-instructions.md',opt:1,b:()=>PRE('npm test -- --coverage\nnpm run test:policy   # assumes each role and calls kms:GenerateMac')}],
  pre:[['DEV','Drafting the code plan. No code is written until the plan is approved.']],
  post:[['DEV','Patch generated. Writing <code>code-summary.md</code>.'],['ARV','Reviewing the diff against the security requirements…']],
- sfail:()=>({s:'required-sections',t:'code-summary.md is missing a required H2 heading.',src:'code-summary.md',auto:'DEV',fixmsg:'Heading restored. Sensor re-run: pass.'}),
+ sfail:()=>blindScan()||S.flags.fourth?null:{s:'traceability',t:'NFR-6 (the fraud-ops notebook gets its own role and grant) is a GAP in traceability.json: no code change is mapped to it.',src:'traceability.json: NFR-6 · GAP',key:'fourth',ch:'Build NFR-6 (notebook role and grant)',fixmsg:'The notebook has its own role and a scoped grant in the patch. NFR-6 is mapped. Sensor re-run: pass.'},
  finds:()=>dv('3.5.grant')===1?[{by:'ARV',t:'The diff redeploys 11 stacks that have nothing to do with this advisory.',src:'infra/constructs/ci-role.ts',fix:'3.5.grant',ch:'Scope the grant here; backlog the construct'}]:dv('3.5.grant')===2&&!S.flags.grantFix?[{by:'ARV',t:'An explicit deny names one role. The wildcard still gives the key to any role created tomorrow.',src:'infra/constructs/ci-role.ts:27',fix:'3.5.grant',ch:'Scope the grant here; backlog the construct'}]:[]},
 
 '3.6':{
@@ -6121,8 +6120,8 @@ function incident(D){
      auto:closed,autoLog:'AccessDenied on every call: the key policy names its callers, and this is not one of them.'},
     W2,
     {id:'locked',n:'Fraud ops locked out',sev:65,chart:'err',sym:'The fraud-ops ring notebook fails with AccessDenied, in the middle of the incident it exists for.',
-     rc:blindScan()?'A fourth caller uses the key from outside the repository. The code scan (2.1) could not see it, so the lockdown cut it off.':'The fourth caller was in the scan (SEC-4), and the requirements never covered it. The lockdown cut it off.',
-     auto:fourthOk,autoLog:'The notebook got its own role and scoped grant in the patch (SR-6). Fraud ops is already tracing the ring.'},
+     rc:blindScan()?'A fourth caller uses the key from outside the repository. The code scan (2.1) could not see it, so the lockdown cut it off.':'NFR-6 said to give the fourth caller its own grant, and nothing was ever built for NFR-6. The lockdown cut it off.',
+     auto:fourthOk,autoLog:'The notebook got its own role and scoped grant in the patch (NFR-6). Fraud ops is already tracing the ring.'},
   ];
   const abil=[
    {id:'investigate',n:'Investigate',ag:'OPS',role:'ops',cast:()=>D['4.4.alarm']===0?1:2,cd:0,util:1,d:'Read CloudTrail and the key metrics to find the cause.',src:()=>D['4.4.alarm']===0?'4.4: unexpected callers already page (fast)':'always available'},
@@ -6148,7 +6147,7 @@ function incident(D){
     why(){const it=[];
       it.push([closed?'The replay hit a closed key':'The key was still open to other roles',closed?'good':'bad',closed?'2.3 required the key policy to name its callers, and 3.5 scoped the grant.':D['2.3.done']===2?'2.3 stopped at revoking one credential.':'3.5 left the wildcard grant and denied a single role.']);
       it.push([rot==='dual'?(W2.auto?'The rotation cost lenders nothing':'The dual-key window ran outside the SLO'):rot==='hard'?'The rotation blinded ID-VEL-02':'Nothing computed during the exposure was invalidated',rot==='dual'&&W2.auto?'good':'bad',rot==='dual'?(W2.auto?'3.2 wrote the dual-key window and its latency budget before anyone touched the key.':'3.2 chose the dual-key window and accepted 190 ms for it.'):rot==='hard'?(noNfr?`The ${scope().n} scope has no NFR Requirements stage, so the rotation rule was never written.`:'3.2 chose a hard cutover.'):'The key was never rotated.']);
-      it.push([fourthOk?'Fraud ops kept working':'The lockdown cut off fraud ops',fourthOk?'good':'bad',fourthOk?'The upstream-coverage sensor at 2.3 caught that SEC-4 was missing, and someone asked for the fix.':blindScan()?'2.1 trusted the repository, so the fourth caller was never found.':scope().sensors?'The upstream-coverage sensor flagged SEC-4 at 2.3, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed the requirements had skipped SEC-4.`]);
+      it.push([fourthOk?'Fraud ops kept working':'The lockdown cut off fraud ops',fourthOk?'good':'bad',fourthOk?'The traceability sensor at 3.5 caught that NFR-6 had nothing built for it, and someone asked for the fix.':blindScan()?'2.1 trusted the repository, so the fourth caller was never found.':scope().sensors?'The traceability sensor flagged NFR-6 at 3.5, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed that NFR-6 was never built.`]);
       return it},
   };
 }
@@ -6157,7 +6156,7 @@ function debrief(C2,D){
   C2('2.1',D['2.1.callers']===0,D['2.1.callers']===0?'Checking CloudTrail as well as the code found a caller that is in no repository.':'The scan knew who could call the key in code, and nothing about who really did.');
   C2('2.3',D['2.3.done']===0,D['2.3.done']===0?'"Patched" meant revoke, restrict, rotate and prove: four different things.':D['2.3.done']===1?'The key was restricted but never rotated, so the exposure outlived the patch.':'Revoking one credential left the grant that exposed the key.');
   C2('2.3',D['2.3.tell']===0,D['2.3.tell']===0?'Lenders were told inside the 72 hours the agreement gives.':D['2.3.tell']===1?'Notice was tied to the patch date, with the 72-hour clock still running.':'Lenders were never told about an event the agreement says they must hear about.');
-  if(D['2.1.callers']===0)C2('SENS',!!S.flags.fourth,S.flags.fourth?'The upstream-coverage sensor caught a finding the requirements had skipped (SEC-4).':'The fourth caller (SEC-4) never made it into the requirements.');
+  if(D['2.1.callers']===0)C2('SENS',!!S.flags.fourth,S.flags.fourth?'The traceability sensor caught a requirement with nothing built for it (NFR-6, the notebook\'s own grant).':'NFR-6 (the notebook\'s own grant) was written down and never built.');
   if(D['2.3.done']===0)C2('3.2',rotation()==='dual',D['3.2.rotate']===undefined?`NFR Requirements is not in the ${scope().n} scope, so nobody wrote down how to rotate a key that every counter depends on.`:rotation()==='dual'?'A dual-key window rotated the key without costing ID-VEL-02 its 14-day memory.':'The rotation rule that was written still lost the counters or kept the key.');
   if(D['3.5.grant']!==undefined)C2('3.5',D['3.5.grant']===0,D['3.5.grant']===0?'The grant was fixed where it mattered, and the shared construct went to the backlog.':D['3.5.grant']===1?'An urgent patch grew to redeploy 11 unrelated stacks.':'An explicit deny for one role left the wildcard for the next one.');
   if(D['3.6.neg']!==undefined)C2('3.6',D['3.6.neg']===0,D['3.6.neg']===0?'Negative tests proved who is locked out, which is what the advisory was about.':'The build proved the service still works, not that anyone is denied.');
@@ -6185,8 +6184,8 @@ return {
   return {why:'Policy test failure: a role created under the CI wildcard can still call GenerateMac. The explicit deny names one role, and the test made another.',fixed:'Second run: green. The grant is scoped to this stack, and 36 of 36 other roles are denied.'}},
  deploy:{what:'the key patch',all:'No blast-radius control: every assessment changed keys in the same second.',when:['Today 16:00','Tonight 23:30'],late:'23:34 · one engineer is online'},
  addStage:{at:'2.3',add:'3.2',ask:'NFR Requirements is not in this scope, but this patch rotates a key that every counter depends on. Add it?',sub:'Nobody has written down how the key rotates without blinding the counters.'},
- traceGap:()=>S.ran.has('2.3')&&!blindScan()&&!S.flags.fourth,
- humanSensor:'2.3',
+ traceGap:()=>S.ran.has('3.5')&&!blindScan()&&!S.flags.fourth,
+ humanSensor:'3.5',
  badge:{ic:'🗝️',n:'Rotate Without Forgetting',d:'Restrict the key, rotate it through a dual-key window, and prove who is locked out.',test:()=>S.dec['2.3.done']===0&&S.dec['3.2.rotate']===0&&S.dec['3.6.neg']===0},
  incident,debrief,
 };
@@ -7131,7 +7130,7 @@ function renderIntel(){
   <section>${h3('The six sensors')}<dl>${SENSORS.map(s=>`<div><dt class="mono" style="font-size:12px">${s}${st&&stageSens(st).includes(s)?' <span style="color:var(--good)">· this stage</span>':''}</dt><dd>${SENSOR_INFO[s]}</dd></div>`).join('')}</dl><p class="hint">Each stage imports only the sensors that apply to it. All six ship as advisory: they check evidence and structure, not whether a design is wise. That judgement is yours.</p></section>
   <section>${h3('Gate options')}<dl><div><dt>Approve · Continue to &lt;next&gt;</dt><dd>Advance the workflow.</dd></div><div><dt>Request Changes</dt><dd>The lead agent revises and the artifact gets a new revision. After 3 change requests a third option, <i>Accept as-is</i>, appears.</dd></div><div><dt>Approve, and add &lt;skipped stage&gt; next</dt><dd>In Ideation and Inception, pull a skipped stage back in when it turns out to matter.</dd></div><div><dt>“Approve, but let's stop there for today”</dt><dd>Not a button: a reply. It approves and parks the workflow; <code>/aidlc --resume</code> picks it up.</dd></div></dl></section>
   <section>${h3('14 agents')}<dl>${Object.entries(AGENTS).map(([k,a])=>`<div><dt><span class="mono" style="color:${a.c}">${k}</span> ${a.n}</dt><dd>${a.d}</dd></div>`).join('')}</dl></section>
-  <p class="foot"><b>Simulator liberties.</b> Who approves each gate, and the score, are game rules: in AI-DLC every gate is simply a human approval. “Open risk” notes on stages without a reviewer are the game's way of surfacing a weak decision. The simulator follows one Unit through Construction; a real run walks every Unit and stops at each Unit checkpoint. The incident at the end is fiction.</p>`;
+  <p class="foot"><b>Simulator liberties.</b> Who approves each gate, and the score, are game rules: in AI-DLC every gate is simply a human approval. “Open risk” notes on stages without a reviewer are the game's way of surfacing a weak decision. The simulator follows one Unit through Construction; a real run walks every Unit and stops at each Unit checkpoint. Which scopes a scenario offers, how well each fits, and which skipped stage a gate offers to add are the game's choices: upstream's own stage files offer User Stories from Requirements Analysis, and Units Generation from Domain Design. The incident at the end is fiction.</p>`;
 }
 
 /* ---------- prediction ---------- */

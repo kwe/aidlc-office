@@ -335,7 +335,7 @@ kbd{font:600 11px var(--mono);padding:1px 5px;border:1px solid var(--line2);bord
 .rc .rt{font:600 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--rc)}
 .profs{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:8px}
 .pc .ptag{font-weight:600;color:var(--ink)}
-#scens{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (min-width:1100px){#scens{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .pc .cnt{white-space:nowrap}.pc .pt b{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
 .pc{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel2) 70%,transparent);transition:border-color .15s,box-shadow .2s}
 .pc:hover{border-color:var(--accent)}
@@ -1210,7 +1210,7 @@ function renderIntel(){
   <section>${h3('The six sensors')}<dl>${SENSORS.map(s=>`<div><dt class="mono" style="font-size:12px">${s}${st&&stageSens(st).includes(s)?' <span style="color:var(--good)">· this stage</span>':''}</dt><dd>${SENSOR_INFO[s]}</dd></div>`).join('')}</dl><p class="hint">Each stage imports only the sensors that apply to it. All six ship as advisory: they check evidence and structure, not whether a design is wise. That judgement is yours.</p></section>
   <section>${h3('Gate options')}<dl><div><dt>Approve · Continue to &lt;next&gt;</dt><dd>Advance the workflow.</dd></div><div><dt>Request Changes</dt><dd>The lead agent revises and the artifact gets a new revision. After 3 change requests a third option, <i>Accept as-is</i>, appears.</dd></div><div><dt>Approve, and add &lt;skipped stage&gt; next</dt><dd>In Ideation and Inception, pull a skipped stage back in when it turns out to matter.</dd></div><div><dt>“Approve, but let's stop there for today”</dt><dd>Not a button: a reply. It approves and parks the workflow; <code>/aidlc --resume</code> picks it up.</dd></div></dl></section>
   <section>${h3('14 agents')}<dl>${Object.entries(AGENTS).map(([k,a])=>`<div><dt><span class="mono" style="color:${a.c}">${k}</span> ${a.n}</dt><dd>${a.d}</dd></div>`).join('')}</dl></section>
-  <p class="foot"><b>Simulator liberties.</b> Who approves each gate, and the score, are game rules: in AI-DLC every gate is simply a human approval. “Open risk” notes on stages without a reviewer are the game's way of surfacing a weak decision. The simulator follows one Unit through Construction; a real run walks every Unit and stops at each Unit checkpoint. The incident at the end is fiction.</p>`;
+  <p class="foot"><b>Simulator liberties.</b> Who approves each gate, and the score, are game rules: in AI-DLC every gate is simply a human approval. “Open risk” notes on stages without a reviewer are the game's way of surfacing a weak decision. The simulator follows one Unit through Construction; a real run walks every Unit and stops at each Unit checkpoint. Which scopes a scenario offers, how well each fits, and which skipped stage a gate offers to add are the game's choices: upstream's own stage files offer User Stories from Requirements Analysis, and Units Generation from Domain Design. The incident at the end is fiction.</p>`;
 }
 
 /* ---------- prediction ---------- */

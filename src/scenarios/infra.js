@@ -288,7 +288,7 @@ return {
   return {why:'Game day failure: a seeded ring split across the two regions never fires in Frankfurt. '+[k?'Each region computes a different fingerprint for the same person':null,c?'sightings written in one region are overwritten by the other':null].filter(Boolean).join(', and ')+'.',
           fixed:'Second run: green. '+[k?'Both regions use a replica of one key':null,c?'each region writes its own counter item':null].filter(Boolean).join(', and ')+'.'}},
  deploy:{what:'the two-region setup',all:'No blast-radius control: every lender moved onto untried routing at once.'},
- addStage:{at:'2.3',add:'3.3',ask:'NFR Design is not in this scope, but two regions are about to write to the same counters. Add it?',sub:'Nobody has designed how two regions write the same counters.'},
+ addStage:{at:'2.3',add:'3.2',ask:'NFR Requirements is not in this scope, but this whole change exists to meet a recovery target. Add it?',sub:'Nobody has decided how the regions share the work, or who fails over.'},
  phaseChecks:from=>from===3?[['Replacements and policy failures block a merge in CI',S.dec['3.7.gates']!==1],['Every NFR maps to a design element',!!S.flags.lag]]:[],
  traceGap:()=>S.ran.has('3.3')&&!S.flags.lag,
  humanSensor:'3.3',

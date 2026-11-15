@@ -128,21 +128,22 @@ const stages={
 
 '1.6':{
  dec:['1.6.first'],
- files:[{p:REC+'ideation/rough-mockups/wireframes.md',b:()=>PRE(pk('1.6.first',[`┌─ Welcome to Aegle Starter ───────────────────┐
-│ Your sandbox key:  <span class="s">sk_test_4f9a…</span>   [copy]     │
-│                                              │
-│ $ curl https://sandbox.aegle.example/assess \\│
-│     -H "Authorization: Bearer sk_test_4f9a…" │
-│     -d @sample-application.json              │
-│ <span class="k">→ 200</span>  reasons: [ ID-VEL-02 … ]              │
-└──────────────────────────────────────────────┘`,`┌─ API reference ──────────────────────────────┐
-│ Authentication · Errors · POST /assess · …   │
-│ <span class="wa">(42 pages; "Getting started" is page 7)</span>     │
-└──────────────────────────────────────────────┘`,`┌─ Tell us about your company ─────────────────┐
-│ Legal name ______   Monthly volume ______    │
-│ Use case   ______   <span class="wa">(11 fields, all required)</span>│
-│                              [ Continue ]    │
-└──────────────────────────────────────────────┘`]))},
+ files:[{p:REC+'ideation/rough-mockups/wireframes.md',b:()=>PRE(pk('1.6.first',[`┌─ Welcome to Aegle Starter ──────────┐
+│ Sandbox key: <span class="s">sk_test_4f9a…</span> [copy]   │
+│                                     │
+│ $ curl sandbox.aegle.example/assess │
+│    -H "Authorization: Bearer $KEY"  │
+│    -d @sample-application.json      │
+│ <span class="k">→ 200</span>  reasons: [ ID-VEL-02 … ]     │
+└─────────────────────────────────────┘`,`┌─ API reference ─────────────────────┐
+│ Authentication · Errors · /assess … │
+│ <span class="wa">42 pages. "Getting started" is p. 7</span> │
+└─────────────────────────────────────┘`,`┌─ Tell us about your company ────────┐
+│ Legal name ______  Volume ______    │
+│ Use case   ______                   │
+│ <span class="wa">11 fields, all required</span>             │
+│                       [ Continue ]  │
+└─────────────────────────────────────┘`]))},
         {p:REC+'ideation/rough-mockups/user-flow.md',opt:1,b:()=>L(['Sign up with a business email','Verify the email','First screen','First call to the sandbox','Request go-live → licence check'])}],
  pre:[['DSN','Sketching the first screen a developer sees after signing up.']],
  post:[['DSN','Wireframes and user flow written.'],['PLR','Reviewing the mockups against the success measure…']],

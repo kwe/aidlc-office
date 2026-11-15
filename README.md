@@ -133,6 +133,8 @@ The game takes these liberties, and says so in its Intel tab:
 - The scenarios (the Aegle API Team, its product and its numbers) and the incidents are fiction.
 - Which scopes each scenario offers, and the best fit, workable and poor fit verdicts, are the game's reading of each
   scope's upstream description.
+- A gate in Ideation or Inception can add a skipped stage ("Approve, and add … next"). Upstream's stage files offer
+  this for User Stories and Units Generation; which stage each scenario offers is the game's choice.
 
 This project is not affiliated with or endorsed by AWS.
 

@@ -1,6 +1,7 @@
 // Checks every scenario's data, then plays each scenario under each scope it offers, to the debrief, with the autoplay harness.
 // Usage: npm run playtest                 (every scenario x its scopes x three play styles)
 //        npm run playtest -- bug infra    (only these scenarios; scope names filter too: npm run playtest -- bug express)
+//        npm run playtest -- --all-seats  (also play the worst answers from every one of the five seats)
 import puppeteer from 'puppeteer-core';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -9,7 +10,8 @@ const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/M
 const GAME = pathToFileURL(path.resolve('v3.html')).href;
 const ROLES = ['po', 'eng', 'pm', 'ops', 'sec'];
 const MODES = ['1', 'fix', 'bad'];
-const only = process.argv.slice(2);
+const allSeats = process.argv.includes('--all-seats');
+const only = process.argv.slice(2).filter(a => !a.startsWith('--'));
 
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: true,
@@ -20,11 +22,11 @@ const browser = await puppeteer.launch({
 // ---- 1. static checks on the scenario data, run inside the page where the data lives
 const lintPage = await browser.newPage();
 await lintPage.goto(GAME, { waitUntil: 'load' });
-const { scopesOf, problems } = await lintPage.evaluate(() => {
-  const problems = [], scopesOf = {};
+const { scopesOf, bestOf, problems } = await lintPage.evaluate(() => {
+  const problems = [], scopesOf = {}, bestOf = {};
   const bad = (k, m) => problems.push(`${k}: ${m}`);
   for (const k of SCEN_ORDER) {
-    const sc = SCENARIOS[k]; scopesOf[k] = sc.scopes;
+    const sc = SCENARIOS[k]; scopesOf[k] = sc.scopes; bestOf[k] = sc.best;
     for (const f of ['n', 'kind', 'tag', 'd', 'ask', 'intent', 'REC', 'KB', 'boot', 'composer', 'DEC', 'stages', 'units', 'deploy', 'incident', 'debrief', 'fit', 'best']) if (sc[f] === undefined) bad(k, `missing field ${f}`);
     if (!sc.scopes.includes(sc.best)) bad(k, `best scope ${sc.best} is not offered`);
     for (const p of sc.scopes) {
@@ -54,7 +56,7 @@ const { scopesOf, problems } = await lintPage.evaluate(() => {
     }
     for (const id of ['4.1', '4.3']) if (sc.stages[id]) { const d = id === '4.1' ? '4.1.strategy' : '4.3.window'; if (!sc.DEC[d]) bad(k, `stage ${id} needs the ${d} decision (the deploy animation reads it)`); }
   }
-  return { scopesOf, problems };
+  return { scopesOf, bestOf, problems };
 });
 await lintPage.close();
 if (problems.length) { console.log('Scenario data problems:\n  ' + problems.join('\n  ')); await browser.close(); process.exit(1); }
@@ -65,7 +67,14 @@ let failed = 0, n = 0, i = 0;
 const runs = [];
 for (const [scen, scopes] of Object.entries(scopesOf)) for (const prof of scopes) {
   const picked = !only.length || ((only.includes(scen) || !only.some(o => scopesOf[o])) && (only.includes(prof) || !only.some(o => !scopesOf[o])));
-  if (picked) MODES.forEach((auto, j) => runs.push({ scen, prof, auto, role: ROLES[(i + j * 2) % ROLES.length] }));
+  if (picked) {
+    const seen = new Set();
+    const add = (auto, role) => { if (!seen.has(auto + role)) { seen.add(auto + role); runs.push({ scen, prof, auto, role }); } };
+    MODES.forEach((auto, j) => add(auto, ROLES[(i + j * 2) % ROLES.length]));
+    if (allSeats) ROLES.forEach(role => add('bad', role));
+    // Network Velocity only: best answers apart from a hot-partition store, which reaches the backward jump and parks once
+    if (scen === 'velocity' && ['feature', 'enterprise'].includes(prof)) add('hot', 'eng');
+  }
   i++;
 }
 async function run({ scen, prof, auto, role }) {
@@ -86,6 +95,8 @@ async function run({ scen, prof, auto, role }) {
     if (r.broken.length) notes.push('artifacts that fail to render: ' + r.broken.join(', '));
     // Network Velocity predates pkd(); in the newer scenarios an artifact must not quietly show the best answer for a decision nobody made
     if (scen !== 'velocity' && r.undef.length) notes.push('artifacts read decisions that were never made, without saying so: ' + r.undef.join(', '));
+    // best answers on the best-fit scope must be winnable: if this breaches, an incident wave has no fix
+    if (auto === '1' && prof === bestOf[scen] && r.d && r.d.boss && !r.d.boss.won) notes.push('best answers on the best-fit scope did not hold the incident');
     const ok = r.d && !r.err && !errors.length && !notes.length && r.d.missing.length === 0 && r.d.prof === prof && r.d.scen === scen;
     if (!ok) failed++;
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${tag} stages ${r.d ? r.d.stages + '/' + r.d.plan : '?'}  score ${r.d ? r.d.score : '?'}  incident ${r.d && r.d.boss ? (r.d.boss.won ? 'held' : r.d.boss.rolledBack ? 'rolled back' : 'breached') + ' (' + r.d.boss.cause + ')' : '?'}  jumps ${r.d ? r.d.loops : '?'}${[r.err, ...errors, ...notes].filter(Boolean).map(x => '\n     ' + x).join('')}`);
