@@ -816,6 +816,15 @@ const pk=(id,arr,dflt)=>{const v=dv(id);if(v===undefined&&dflt===undefined&&wind
   return arr[v===undefined?(dflt===undefined?0:dflt):v]};
 /* A decision made in a stage this scope skipped has no value: say so instead of showing the best answer. */
 const pkd=(id,arr,none)=>dv(id)===undefined?`<span class="wa">${none||'not decided: that stage is not in this scope'}</span>`:arr[dv(id)];
+/* The three Initialization steps read the same in every scenario, apart from the request, the record folder and the workspace line. */
+const initStages=(REC,o)=>({
+ '0.1':{files:[{p:REC+'project-description.json',opt:1,b:()=>PRE(`<span class="s">"${o.ask}"</span>`)+P('Your request, stored as one JSON string exactly as you typed it.')}],
+  pre:[['SYS',`<code>WORKSPACE_SCAFFOLDED</code>: record dir <code>intents/${REC.split('/').slice(-2,-1)[0]}/</code> created`]]},
+ '0.2':{files:[],pre:[['SYS',`<code>WORKSPACE_SCANNED</code>: ${o.ws}`]]},
+ '0.3':{files:[{p:REC+'aidlc-state.md',opt:1,b:()=>H('Workflow state')+T(['Field','Value'],[['Intent',o.intent],['Scope',S.prof],['Workspace','brownfield'],['Current stage',S.cur||'—'],['Depth',scope().depth],['Guard Policy',scope().guard],['Collaborators',scope().collab?'on':'off'],['Sensors',scope().sensors?'on':'off'],['Plan approval',scope().planApproval?'on':'off'],['Walking skeleton',scope().skeleton?'on':'off']])},
+        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. See the Audit tab for the live view.')}],
+  pre:[['SYS','<code>WORKSPACE_INITIALISED</code> · <code>WORKFLOW_STARTED</code>']]},
+});
 /*__SCENARIOS__*/
 
 /* ---------- stages ---------- */
@@ -852,7 +861,7 @@ const STAGES=[
 
 /* ===== 2 INCEPTION ===== */
 {id:'2.1',ph:2,n:'Reverse Engineering',lead:'DEV',col:['ARC'],pat:'Pipeline',own:'eng',hrs:3,alt:['ARC','QA'],
- what:'Scans the existing codebase into a 9-file knowledge base (codekb) at space level.',why:'Agents must understand v1 before changing it. The codekb is shared with every future intent.'},
+ what:'Scans the existing codebase into a 9-file knowledge base (codekb) at space level.',why:'Agents must understand the code as it is before they change it. The codekb is shared with every future intent.'},
 
 {id:'2.2',ph:2,n:'Practices Discovery',lead:'PIP',col:['QA','DEV','DSO'],pat:'Hub & spoke',own:'eng',hrs:2,alt:['DEV','DLV'],cond:1,
  what:'The lead drafts the team\'s practices from the repo, support agents inspect that draft (mutually blind), then the humans are interviewed. Approving the stage promotes the result to team memory.',why:'Agents should follow how this team actually works, not generic best practice.'},
@@ -1494,10 +1503,10 @@ async function canary(){
   const s=S.dec['4.1.strategy']??0;const fri=S.dec['4.3.window']===1;
   setTurn('agents',null,'Deploying to production.');
   const steps=s===0?[5,25,100]:s===1?[100]:[100];
-  const c=card('',`<div class="ck"><span>Deployment · ${['canary','blue/green','all-at-once'][s]}</span><span>${fri?'Fri 17:00':'Tue 10:00'}</span></div><div class="ubar"><div class="ub"><div class="l"><span>Traffic on ${SCN.deploy.what}</span><span class="pc">0%</span></div><div class="t"><i style="width:0"></i></div></div></div><div class="blog"></div>`);
+  const c=card('',`<div class="ck"><span>Deployment · ${['canary','blue/green','all-at-once'][s]}</span><span>${(SCN.deploy.when||['Tue 10:00','Fri 17:00'])[fri?1:0]}</span></div><div class="ubar"><div class="ub"><div class="l"><span>Traffic on ${SCN.deploy.what}</span><span class="pc">0%</span></div><div class="t"><i style="width:0"></i></div></div></div><div class="blog"></div>`);
   const lg=c.querySelector('.blog'),bar=c.querySelector('.t i'),pc=c.querySelector('.pc');
   const log=(t,cls)=>{lg.appendChild(el('div',cls,t));lg.scrollTop=lg.scrollHeight};
-  if(fri)log('17:02 · half the team has already logged off','y');
+  if(fri)log(SCN.deploy.late||'17:02 · half the team has already logged off','y');
   for(const p of steps){bar.style.width=p+'%';pc.textContent=p+'%';NET.packet('PIP','ROOM:4');NET.noc({title:`DEPLOY · ${p}% of traffic on ${SCN.deploy.what}`});await say('PIP',`Traffic at <b>${p}%</b>. Running health checks.`,{after:100});
     await wait(700);log(`${p}% · health ✓ · p99 ${130+Math.round(Math.random()*15)} ms`,'g')}
   if(s===2)log(SCN.deploy.all,'y');

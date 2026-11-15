@@ -4816,6 +4816,984 @@ const pk=(id,arr,dflt)=>{const v=dv(id);if(v===undefined&&dflt===undefined&&wind
   return arr[v===undefined?(dflt===undefined?0:dflt):v]};
 /* A decision made in a stage this scope skipped has no value: say so instead of showing the best answer. */
 const pkd=(id,arr,none)=>dv(id)===undefined?`<span class="wa">${none||'not decided: that stage is not in this scope'}</span>`:arr[dv(id)];
+/* The three Initialization steps read the same in every scenario, apart from the request, the record folder and the workspace line. */
+const initStages=(REC,o)=>({
+ '0.1':{files:[{p:REC+'project-description.json',opt:1,b:()=>PRE(`<span class="s">"${o.ask}"</span>`)+P('Your request, stored as one JSON string exactly as you typed it.')}],
+  pre:[['SYS',`<code>WORKSPACE_SCAFFOLDED</code>: record dir <code>intents/${REC.split('/').slice(-2,-1)[0]}/</code> created`]]},
+ '0.2':{files:[],pre:[['SYS',`<code>WORKSPACE_SCANNED</code>: ${o.ws}`]]},
+ '0.3':{files:[{p:REC+'aidlc-state.md',opt:1,b:()=>H('Workflow state')+T(['Field','Value'],[['Intent',o.intent],['Scope',S.prof],['Workspace','brownfield'],['Current stage',S.cur||'—'],['Depth',scope().depth],['Guard Policy',scope().guard],['Collaborators',scope().collab?'on':'off'],['Sensors',scope().sensors?'on':'off'],['Plan approval',scope().planApproval?'on':'off'],['Walking skeleton',scope().skeleton?'on':'off']])},
+        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. See the Audit tab for the live view.')}],
+  pre:[['SYS','<code>WORKSPACE_INITIALISED</code> · <code>WORKFLOW_STARTED</code>']]},
+});
+/* Scenario: the retry double-count. A production bug in what Network Velocity shipped.
+   Written for the stages that bugfix, refactor and express run. Everything here is story. */
+SCENARIOS.bug=(()=>{
+const REC='aidlc/spaces/identity/intents/261204-vel02-retry-double-count/';
+const KB='aidlc/spaces/identity/codekb/aegle-api/';
+const ASK='ID-VEL-02 flags applicants seen at only one lender when that lender retries /assess';
+/* The counter is right once each lender counts once: either the requirement said so, or Build and Test forced it. */
+const setFix=()=>dv('2.3.fixed')===0||!!S.flags.setFix;
+const stale=()=>dv('2.1.scan')===2;
+
+const DEC={
+ '2.1.scan':{own:'eng',by:'DEV',q:'The code knowledge base is three weeks old and predates two hotfixes. How much do I rescan before touching the counter?',ctx:'Reverse Engineering refreshes the codekb. A stale map sends a fix to the wrong place.',o:[
+  {t:'Rescan the counter path and everything that calls it, then diff against the old codekb',s:10,q:5,fb:'The diff finds the cause, and a second writer nobody remembered: the nightly reconciliation job.'},
+  {t:'Rescan the whole repository from scratch',s:6,fb:'Correct, and it finds everything. It also costs half a day to re-read 16,000 lines for a bug in one module.'},
+  {t:'Trust the codekb as it is. Three weeks is recent.',s:1,r:10,fb:'The codekb predates hotfix #212, where the retry path changed. The agents are now reasoning about code that no longer exists.'}]},
+ '2.3.fixed':{own:'po',by:'PRD',q:'What does "fixed" mean for this bug?',ctx:'In a bugfix, requirements are short: say what correct behaviour is, and how you will know.',o:[
+  {t:'Each lender counts once per identity per window, however many times it calls. Proven by replaying Kestrel\'s retry traffic.',s:10,q:5,r:-5,fb:'A behaviour you can test, tied to the traffic that exposed the bug.'},
+  {t:'Ignore repeat calls that arrive within 5 minutes of the first',s:3,r:5,fb:'That covers an instant retry. A lender that re-checks the same applicant the next morning is still counted twice.'},
+  {t:'Raise the threshold from 3 lenders to 5, so retries stop tripping it',s:0,q:-5,r:10,fb:'That hides the symptom and weakens the signal: a real ring using four lenders now passes.'}]},
+ '2.3.data':{own:'eng',by:'PRD',q:'About 11,400 identities already carry inflated counts in the 14-day window. What happens to them?',ctx:'Fixing the code does not fix the data the bug already wrote.',o:[
+  {t:'Recompute their counts from the sighting log',s:10,r:-5,fb:'Wrongly flagged applicants are cleared the day the fix ships.'},
+  {t:'Leave them. The 14-day window will age the bad counts out.',s:3,r:10,fb:'Honest applicants stay flagged for up to two more weeks, and every resubmission flags them again.'},
+  {t:'Delete the counters for the affected identities',s:0,r:15,fb:'That clears the false flags, and erases the real evidence about rings in the same window.'}]},
+ '2.3.tell':{own:'sec',by:'PRD',q:'1,870 assessments at 9 lenders were flagged wrongly. Do we tell the lenders which ones?',ctx:'Some of those applicants were declined. A decline needs a correct reason.',o:[
+  {t:'Yes: send each lender the IDs of its affected assessments, so it can re-review them',s:10,q:5,r:-10,fb:'Lenders can put right what the bug got wrong, and they hear it from you first.'},
+  {t:'Post a general notice on the status page',s:4,fb:'Honest, but no lender can tell which of its decisions to revisit.'},
+  {t:'No. Fix it quietly.',s:0,r:15,fb:'Applicants declined on a wrong flag are owed a correct reason. Staying silent turns a bug into a compliance problem.'}]},
+ '3.1.edge':{own:'eng',by:'ARC',q:'While pinning the rule down: one lender can see the same identity on a loan and on a card on the same day. Is that one lender or two?',ctx:'Functional Design writes the business rule before code moves. The bugfix scope skips this stage and lets the requirement stand in for it.',o:[
+  {t:'One. The rule counts lenders, not applications.',s:10,fb:'Consistent with the requirement: each lender counts once.'},
+  {t:'Two. Different products are different sightings.',s:2,r:5,fb:'That brings the bug back through another door.'}]},
+ '3.5.sibling':{own:'eng',by:'DEV',q:'While fixing the counter I found the same per-request counting in ID-VEL-01, the single-lender check from v1. Fix it here too?',ctx:'A question raised mid-build. The agent stops to ask instead of widening the change by itself.',o:[
+  {t:'No. Record it in the intent backlog as its own bugfix, with the evidence.',s:10,fb:'This fix stays small enough to review, and the second defect is not lost.'},
+  {t:'Yes, fix both while the code is open',s:3,r:10,fb:'The change now touches a second live signal that has no requirement and no test in this intent.'},
+  {t:'Leave it. Nobody has complained about ID-VEL-01.',s:0,r:5,fb:'A known defect with no ticket is one nobody will find again.'}]},
+ '3.6.proof':{own:'eng',by:'QA',q:'How do we prove the fix against the traffic that exposed the bug?',ctx:'Build and Test is the evidence that the change does what the requirement says.',o:[
+  {t:'Replay Kestrel\'s recorded retry traffic against the build, and compare flags before and after',s:10,q:5,fb:'A test that fails on the old code and passes on the new one. That is what a regression test is.'},
+  {t:'The unit tests on the counter module are enough',s:3,r:5,fb:'They pass. They also passed three weeks ago, when the bug shipped.'}]},
+ '4.1.strategy':{own:'ops',by:'PIP',q:'How does the fix reach all 40 lenders?',ctx:'This decides how quickly and safely you can undo it.',o:[
+  {t:'Canary 5% → 25% → 100%, rolling back automatically if a lender\'s flag rate leaves its usual band',s:10,fb:'A small blast radius, watched by the metric the bug actually moved.'},
+  {t:'Blue/green switch',s:6,fb:'Fast to flip back, but every lender gets the change in the same second.'},
+  {t:'All at once. It is a small fix.',s:0,r:10,fb:'The bug it fixes was a small change too.'}]},
+ '4.1.order':{when:()=>dv('2.3.data')===0,own:'ops',by:'PIP',q:'Two things ship: the code fix and the job that recomputes the inflated counts. In which order?',ctx:'The recompute reads the sighting log and rewrites every affected counter.',o:[
+  {t:'Code first, then the recompute, so nothing can inflate the corrected counts',s:10,fb:'The corrected data is written once and stays correct.'},
+  {t:'Recompute first, then the code',s:2,r:10,fb:'For the hours in between, retries inflate the freshly corrected counts all over again.'}]},
+ '4.3.window':{own:'pm',by:'PIP',q:'The fix is ready on Thursday afternoon. When does it go out?',ctx:'Kestrel\'s ticket is four days old. Month end is nine days away.',o:[
+  {t:'Tuesday 10:00, with the whole team online and Kestrel told in advance',s:10,fb:'If the recompute misbehaves, everyone is there to see it.'},
+  {t:'Friday 17:00, so the ticket closes this week',s:0,r:10,fb:'A counter change and a data job, running unwatched over a weekend.'}]},
+ '4.4.alarm':{own:'ops',by:'OPS',q:'The bug ran for three weeks before a lender told us. What would have caught it in week one?',ctx:'Observability Setup. Latency and error alarms stayed green the whole time.',o:[
+  {t:'An alarm on the ID-VEL-02 flag rate for each lender, against that lender\'s own baseline',s:10,q:5,fb:'The service answered quickly and correctly formed. Only what it said was wrong, and this watches what it says.'},
+  {t:'The latency and error alarms we already have',s:2,r:5,fb:'They were perfect for three weeks. This bug never slowed a request or threw an error.'}]},
+};
+
+const units=()=>[{id:'aegle-api',kind:'service',st:'(no Units in this scope)',plan:'correct the network counter, with a regression test from recorded traffic',files:14,tests:64}];
+const fixTxt=()=>setFix()?'store the set of lender IDs seen per identity; the count is the size of the set':dv('2.3.fixed')===1?'<span class="wa">skip the write when the same lender called within the last 5 minutes</span>':'<span class="no">no change to counting; VEL02_THRESHOLD goes from 3 to 5</span>';
+
+const stages={
+...initStages(REC,{ask:ASK,intent:'vel02-retry-double-count (LND-2291)',ws:'brownfield · TypeScript 5 · Node 20 · AWS CDK · repo <code>aegle-api</code> (codekb found, 21 days old)'}),
+
+'2.1':{
+ why:'The codekb is three weeks old. Agents need the code as it is today, not as it was when Network Velocity shipped.',
+ dec:['2.1.scan'],
+ files:[
+  {p:KB+'code-quality-assessment.md',b:()=>stale()?P('<span class="wa">Not refreshed.</span> Last scan 2026-11-13, before hotfixes #208 and #212.')+T(['ID','Finding','Where'],[['CQ-01','test coverage 84%','src/'],['CQ-03','reason merging is untested for &gt;3 reasons','src/reasons.ts:40']]):T(['ID','Finding','Where'],[['<b class="wa">CQ-07</b>','<b>the network counter adds 1 per request; rule R-1 says distinct lenders</b>','src/network/counter.ts:48'],['<b class="wa">CQ-08</b>','<b>the nightly reconciliation job replays the day\'s sightings into the same counter</b>','jobs/reconcile.ts:31'],['CQ-03','reason merging is untested for &gt;3 reasons','src/reasons.ts:40']])+P('Hotfix #212 cut the gateway timeout from 2 s to 800 ms. Lender gateways now retry about six times as often, which is when CQ-07 started to show.')},
+  {p:KB+'architecture.md',b:()=>PRE(`lender ─▶ API GW ─▶ λ assess ─┬▶ ID-VEL-01 (per lender)
+                              ├▶ ID-VEL-02 ─▶ network-counter (fp#0–9)
+                              └▶ reasons[] ─▶ response${stale()?'':`
+02:00 jobs/reconcile ─────────▶ network-counter   <span class="wa">← second writer</span>`}`)},
+  {p:KB+'reverse-engineering-timestamp.md',opt:1,b:()=>P(pk('2.1.scan',['Diff scan at 2026-12-04T09:40Z: src/network/, jobs/ and their callers. 38 files re-read, 2 new findings.','Full scan at 2026-12-04T13:55Z, covering 100% of the repository. 2 new findings.','No new scan. Still the full scan from 2026-11-13.']))},
+  {p:KB+'component-inventory.md',opt:1,b:()=>L(['assess λ','vel01 rule','vel02 rule','network-counter (DynamoDB, write-sharded)',stale()?null:'<b>reconcile job (nightly, 02:00)</b>'])}],
+ pre:[['DEV','A codekb for <code>aegle-api</code> already exists at space level, written when Network Velocity was built. It is 21 days old.'],['DEV','Before I change anything I need to know how far to trust it.']],
+ post:[['DEV','Code knowledge base written to the <b>space-level</b> store, so the next intent starts from today\'s code.']],
+ after:()=>{if(dv('2.1.scan')===1)tick(4)},
+ finds:()=>stale()?[{by:'DEV',t:'The codekb predates hotfixes #208 and #212. Whatever changed in the retry path is not in it.',src:'reverse-engineering-timestamp.md:L1',fix:'2.1.scan',ch:'Rescan the counter path and its callers'}]:[]},
+
+'2.3':{
+ dec:['2.3.fixed','2.3.data','2.3.tell'],
+ files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Defect')+P('ID-VEL-02 fires for identities seen at one lender when that lender retries <code>/assess</code>. '+SRC('ticket LND-2291, Kestrel Finance'))+H('Functional')+L(['FR-1: '+pk('2.3.fixed',['each lender counts once per identity per 14-day window, however many calls it makes','<span class="wa">repeat calls within 5 minutes of the first are ignored</span>','<span class="no">the ID-VEL-02 threshold rises from 3 lenders to 5</span>']),'FR-2: the 11,400 identities with inflated counts are '+pk('2.3.data',['recomputed from the sighting log','<span class="wa">left to expire with the 14-day window</span>','<span class="no">deleted</span>']),'FR-3: lenders '+pk('2.3.tell',['each receive the IDs of their affected assessments','<span class="wa">see a general notice on the status page</span>','<span class="no">are not told</span>']),S.flags.cq08?'<b>FR-4: the nightly reconciliation job writes through the same distinct-lender path</b> '+SRC('CQ-08'):null])+H('How we will know')+P(dv('2.3.fixed')===0?'Kestrel\'s recorded retry traffic, replayed against the build: no flags for single-lender identities.':'<span class="wa">No acceptance test is named.</span>')},
+        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "FR-1": ["LND-2291", "CQ-07"], "FR-2": ["CQ-07"], "FR-3": ["LND-2291"]'+(S.flags.cq08?', "FR-4": ["CQ-08"]':'')+' }')}],
+ pre:[['PRD','A bugfix needs short requirements: what correct behaviour is, what happens to the damage already done, and who needs to know.'],['PRD','Three questions need humans.']],
+ post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the ticket and the code scan…']],
+ sfail:()=>stale()||S.flags.cq08?null:{s:'upstream-coverage',t:'requirements.md never references finding CQ-08 from the code scan: the nightly reconciliation job also writes to the counter.',src:'requirements.md → code-quality-assessment.md:CQ-08',key:'cq08',ch:'Cover the reconciliation job (CQ-08)',fixmsg:'FR-4 added: the reconciliation job writes through the same distinct-lender path. Sensor re-run: pass.'},
+ finds:()=>{const f=[];
+  if(dv('2.3.fixed')===1)f.push({by:'PLR',t:'"Within 5 minutes" describes one retry pattern, not the rule. A lender that re-checks an applicant the next day is still counted twice.',src:'requirements.md:FR-1',fix:'2.3.fixed',ch:'Define fixed as one count per lender'});
+  if(dv('2.3.fixed')===2)f.push({by:'PLR',t:'Raising the threshold changes what ID-VEL-02 detects. Four-lender rings stop being flagged, and the counting is still wrong.',src:'requirements.md:FR-1',fix:'2.3.fixed',ch:'Define fixed as one count per lender'});
+  if(dv('2.3.data')===1)f.push({by:'PLR',t:'11,400 identities keep inflated counts for up to 14 days. Each resubmission flags the same honest applicants again.',src:'requirements.md:FR-2',fix:'2.3.data',ch:'Recompute counts from the sighting log'});
+  if(dv('2.3.data')===2)f.push({by:'PLR',t:'Deleting counters removes genuine cross-lender sightings for the same identities. Rings in that window go unseen.',src:'requirements.md:FR-2',fix:'2.3.data',ch:'Recompute counts from the sighting log'});
+  if(dv('2.3.tell')===2)f.push({by:'PLR',t:'Lenders declined applicants on a flag we know was wrong. They need the assessment IDs to correct those decisions.',src:'requirements.md:FR-3',fix:'2.3.tell',ch:'Send each lender its affected assessments'});
+  return f}},
+
+'3.1':{
+ dec:['3.1.edge'],
+ files:[{p:REC+'construction/functional-design/rules.md',b:()=>L(['R-1: count distinct <i>other</i> lenders per fingerprint in a 14-day sliding window <span class="muted">(unchanged from Network Velocity)</span>','R-1a: '+(setFix()?'a lender is counted once, however many requests it sends':dv('2.3.fixed')===1?'<span class="wa">a repeat within 5 minutes is not a sighting</span>':'<span class="no">unchanged; threshold 5</span>'),'R-1b: two products at one lender on one day count as '+pk('3.1.edge',['one lender','<span class="wa">two sightings</span>'])])},
+        {p:REC+'construction/functional-design/functional-spec.md',b:()=>PRE(setFix()?'record(fp, lender):\n  lenders[fp] ∪= { lender }        # idempotent\n  return |lenders[fp] − { lender }|':'record(fp, lender):\n  if seen(fp, lender, within=5min): return count[fp]\n  return ++count[fp]')},
+        {p:REC+'construction/functional-design/entities.md',opt:1,b:()=>L(['Fingerprint (opaque, 32 bytes)','LenderSet { fp, lenders: Set&lt;LenderId&gt;, ttl 14 d }'])}],
+ pre:[['ARC','Functional design for the counter. The rule from Network Velocity said "distinct lenders"; the code stored a number.'],['ARC','I am writing the rule and the data shape so that they cannot disagree again.']],
+ post:[['ARC','Rules and spec written.'],['ARV','Reviewing the functional design…']],
+ finds:()=>dv('3.1.edge')===1?[{by:'ARV',t:'Counting two products as two sightings contradicts FR-1: one lender would again be counted twice.',src:'rules.md:R-1b',fix:'3.1.edge',ch:'Count each lender once'}]:[]},
+
+'3.5':{
+ files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>src/network/counter.ts</code>: '+fixTxt(),'<code>jobs/reconcile.ts</code>: '+(S.flags.cq08?'write through the same path '+SRC('FR-4'):stale()?'<span class="muted">not known to this plan</span>':'<span class="wa">not in the requirements; left as it is</span>'),'<code>jobs/recompute-counts.ts</code>: '+(dv('2.3.data')===0?'new one-off job that rebuilds each affected counter from the sighting log '+SRC('FR-2'):'<span class="muted">none</span>'),'Edge rule (one lender, two products): '+pkd('3.1.edge',['counts once','<span class="wa">counts twice</span>'],'not written down: Functional Design is not in this scope, so the Developer follows FR-1')])},
+        {p:REC+'construction/code-generation/code-summary.md',b:()=>T(['Change','Files','Tests'],[['network counter',5,38],S.flags.cq08?['reconcile job',2,9]:null,dv('2.3.data')===0?['recompute job',3,17]:null,dv('3.5.sibling')===1?['<span class="wa">rules/vel01.ts (not in the requirements)</span>',4,0]:null])+P('Same counting pattern found in ID-VEL-01: '+pk('3.5.sibling',['recorded in the intent backlog as its own bugfix','<span class="wa">changed in this intent</span>','<span class="no">left, with no ticket</span>'],0))},
+        {p:REC+'construction/code-generation/unit-test-instructions.md',opt:1,b:()=>PRE('npm test -- --coverage\nnpm run replay -- fixtures/kestrel-retries.ndjson')}],
+ pre:[['DEV','Drafting the code plan. No code is written until the plan is approved.']],
+ post:[['DEV','Change generated. Writing <code>code-summary.md</code>.'],['ARV','Reviewing the diff against the requirements…']],
+ sfail:()=>({s:'traceability',t:'FR-1 has no test mapped to it in traceability.json.',src:'traceability.json: FR-1',auto:'DEV',fixmsg:'FR-1 mapped to counter.retry.test.ts. Sensor re-run: pass.'}),
+ finds:()=>dv('3.5.sibling')===1?[{by:'ARV',t:'The diff changes rules/vel01.ts. No requirement in this intent covers ID-VEL-01, and no test was added for it.',src:'rules/vel01.ts',fix:'3.5.sibling',ch:'Take ID-VEL-01 out and record it in the backlog'}]:dv('3.5.sibling')===2?[{by:'ARV',t:'A second copy of the same defect was found and nothing records it.',src:'code-summary.md:L5',fix:'3.5.sibling',ch:'Record the ID-VEL-01 defect in the backlog'}]:[]},
+
+'3.6':{
+ dec:['3.6.proof'],
+ files:[{p:REC+'construction/build-and-test/test-results.md',b:()=>T(['Suite','Result'],[['unit','<span class="ok">476 passed</span>'],['integration','<span class="ok">41 passed</span>'],['replay: Kestrel retry traffic',pk('3.6.proof',[setFix()?'<span class="ok">0 single-lender flags (was 640)</span>':'<span class="no">single-lender flags remain</span>','<span class="wa">not run</span>'])],['network check p99','143 ms (was 141 ms)']])},
+        {p:REC+'construction/build-and-test/build-instructions.md',opt:1,b:()=>PRE('npm ci && npm run build && npm test'+(dv('3.6.proof')===0?' && npm run replay':''))}],
+ pre:[['QA','Building, then running the unit and integration suites.'],['QA','One question first: what counts as proof here?']],
+ post:[['QA','Writing <code>test-results.md</code>.']],
+ finds:()=>dv('3.6.proof')===1?[{by:'QA',t:'Nothing in this build replays the traffic that exposed the bug. The same unit tests passed three weeks ago.',src:'test-results.md:L3',fix:'3.6.proof',ch:'Replay Kestrel\'s recorded retry traffic'}]:[]},
+
+'4.1':{
+ dec:['4.1.strategy','4.1.order'],
+ files:[{p:REC+'operation/deployment-pipeline/deployment-strategy.md',b:()=>P(pk('4.1.strategy',['<b>Canary</b> 5% → 25% → 100%, 10 min bake each, automatic rollback if any lender\'s flag rate leaves its baseline band','<b>Blue/green</b> switch with instant flip-back','<b>All at once</b>']))+(dv('2.3.data')===0?P('Order: '+pkd('4.1.order',['code fix first, then the recompute job','<span class="no">recompute job first, then the code fix</span>'],'not decided yet')):'')},
+        {p:REC+'operation/deployment-pipeline/rollback-runbook.md',b:()=>L(['Trigger: a lender\'s ID-VEL-02 flag rate leaves its baseline band','Action: '+pk('4.1.strategy',['canary auto-rollback (~2 min)','flip to blue (~1 min)','redeploy previous (~8 min)']),dv('2.3.data')===0?'Data: the recompute job is idempotent and can be re-run after a rollback':null])},
+        {p:REC+'operation/deployment-pipeline/cd-config.md',opt:1,b:()=>PRE('pipeline: aegle-api-cd\nstages: staging → prod')}],
+ pre:[['PIP','Planning how the fix reaches production, and how it comes back out if it has to.']],
+ post:[['PIP','Writing the deployment strategy and rollback runbook.']],
+ finds:()=>{const f=[];
+  if(dv('4.1.strategy')===2)f.push({by:'PIP',t:'All-at-once gives a counter change no blast-radius control, and rollback takes about 8 minutes.',src:'deployment-strategy.md:L1',fix:'4.1.strategy',ch:'Use a canary with auto-rollback'});
+  if(dv('4.1.order')===1)f.push({by:'PIP',t:'Recomputing before the code fix lets retries inflate the corrected counts for as long as the old code is live.',src:'deployment-strategy.md:L2',fix:'4.1.order',ch:'Ship the code first, then recompute'});
+  return f}},
+
+'4.3':{
+ dec:['4.3.window'],
+ files:[{p:REC+'operation/deployment-execution/deployment-log.md',b:()=>PRE(pk('4.1.strategy',['09:58 canary 5%  ✓ flag rate in band\n10:08 canary 25% ✓ flag rate in band\n10:18 100%       ✓','10:00 green up ✓\n10:05 flip ✓','10:00 deploy 100% ✓'])+(dv('2.3.data')===0?(dv('4.1.order')===1?'\n<span class="wa">07:30 recompute-counts ran before the deploy</span>':'\n10:40 recompute-counts: 11,400 identities rebuilt ✓'):''))},
+        {p:REC+'operation/deployment-execution/smoke-test-results.md',b:()=>L([setFix()?'one lender, 5 retries → no ID-VEL-02 ✓':'<span class="no">one lender, re-check next day → ID-VEL-02 fires ✗</span>',dv('2.3.fixed')===2?'<span class="no">seeded 4-lender ring → no flag ✗ (threshold is 5)</span>':'seeded 3-lender ring → ID-VEL-02 ✓','p99 143 ms ✓'])}],
+ pre:[['PIP','Ready to deploy the fix to prod. The deploy window is a human call.']],
+ post:[['PIP','Writing the deployment log and smoke test results.']],
+ finds:()=>dv('4.3.window')===1?[{by:'PIP',t:'A Friday 17:00 deploy of a counter change and a data job, with month end nine days away and nobody watching over the weekend.',src:'deployment-log.md:L1',fix:'4.3.window',ch:'Move to Tuesday 10:00'}]:[]},
+
+'4.4':{
+ dec:['4.4.alarm'],
+ files:[{p:REC+'operation/observability-setup/alarms.md',b:()=>L(pk('4.4.alarm',[['<b>ID-VEL-02 flag rate per lender vs its own 4-week baseline: outside ±40% → page</b>','existing latency and error burn-rate alarms (unchanged)'],['existing latency and error burn-rate alarms (unchanged)']]))},
+        {p:REC+'operation/observability-setup/slo-config.md',b:()=>PRE('slo: network-check-availability  target: 99.9%  window: 30d   # unchanged\nslo: network-check-latency      p99 < 150ms                # unchanged')},
+        {p:REC+'operation/observability-setup/dashboards.md',opt:1,b:()=>L(['Network Velocity: hits/s, ID-VEL-00 rate, p99, throttles',dv('4.4.alarm')===0?'<b>new panel: flag rate by lender, with baseline band</b>':null])}],
+ pre:[['OPS','Reviewing what the dashboards showed while this bug was live. Every existing panel was green.']],
+ post:[['OPS','Writing alarms and dashboards.']],
+ finds:()=>dv('4.4.alarm')===1?[{by:'OPS',t:'Nothing watches what ID-VEL-02 says. The next wrong-answer bug will also be found by a lender.',src:'alarms.md:L1',fix:'4.4.alarm',ch:'Alarm on flag rate per lender'}]:[]},
+};
+
+/* ---------- the incident: month end, when every gateway retries at once ---------- */
+function incident(D){
+  const kind=D['2.3.fixed']===2?'ring':setFix()?'retry':'next';
+  const W1={
+    retry:{n:'Month-end retry burst',sev:45,sym:'Lender gateways are retrying six times as often while brokers push the month\'s pending applications. The flag rate is steady.',rc:'Pure retry volume. Each lender counts once now, so the counter is not fooled; the API just needs room.'},
+    next:{n:'Flags on next-day rechecks',sev:85,sym:'ID-VEL-02 is firing for applicants that one lender checked last week and checked again today.',rc:'The fix only ignores repeats within 5 minutes (2.3). A recheck days later still counts as another lender.'},
+    ring:{n:'Rings under the threshold',sev:95,sym:'Fraud ops has confirmed a ring that used four lenders this week. ID-VEL-02 never fired.',rc:'Raising the threshold to 5 (2.3) hid the retries and the rings together.'},
+  }[kind];
+  const sib=D['3.5.sibling']===1?15:0;
+  const order=D['4.1.order']===1,data=D['2.3.data'];
+  const staleOk=data===0&&!order;
+  const reconOk=!!S.flags.cq08;
+  const waves=[
+    {id:kind,...W1,sev:W1.sev+sib,chart:kind==='retry'?'rps':'err'},
+    {id:'stale',n:data===2?'Missing evidence':'Stale counters',sev:data===2?75:80,chart:'err',
+     sym:data===2?'Fraud ops reports identities from a known ring coming back clean.':'Applicants flagged wrongly last week are flagged again as their applications are resubmitted. Manual review queues are filling.',
+     rc:data===2?'The counters for 11,400 identities were deleted (2.3), and the genuine sightings went with them.':order?'The recompute ran before the code fix (4.1), so retries inflated the corrected counts again.':'The inflated counts were left to age out (2.3). They have days still to run.',
+     auto:staleOk,autoLog:'The recompute job rebuilt these counters from the sighting log on deploy day. Nothing stale is left to flag.'},
+    {id:'recon',n:'Counts jump overnight',sev:70,chart:'err',sym:'At 02:00 the counts rose for 3,100 identities that had no new applications.',
+     rc:stale()?'A nightly reconciliation job also writes to the counter. The stale codekb (2.1) never showed it.':'The nightly reconciliation job also writes to the counter (CQ-08), and the requirements never covered it.',
+     auto:reconOk,autoLog:'FR-4 moved the reconciliation job onto the distinct-lender write. It ran at 02:00 and inflated nothing.'},
+  ];
+  const abil=[
+   {id:'investigate',n:'Investigate',ag:'OPS',role:'ops',cast:()=>D['4.4.alarm']===0?1:2,cd:0,util:1,d:'Read the flag-rate panels and traces to find the cause.',src:()=>D['4.4.alarm']===0?'4.4: flag rate per lender is on a dashboard (fast)':'always available'},
+   {id:'hotfix',n:'Hotfix: count lenders as a set',ag:'DEV',role:'eng',cast:6,cd:15,d:'Replace the number with the set of lenders seen, and restore the threshold.',dmg:{next:100,ring:100,retry:10},src:()=>'always available (slow)'},
+   {id:'recompute',n:'Recompute counts',ag:'DEV',role:'eng',cast:()=>data===0?3:7,cd:12,d:'Rebuild affected counters from the sighting log.',dmg:{stale:100,recon:45,next:20},src:()=>data===0?'2.3: the recompute job already exists (fast)':'always available (slow: written during the incident)'},
+   {id:'pause',n:'Pause the reconcile job',ag:'PIP',role:'ops',cast:2,cd:10,d:'Stop the nightly job from writing to the counter.',dmg:{recon:100},src:()=>'always available'},
+   {id:'backoff',n:'Enforce retry backoff',ag:'DSO',role:'sec',cast:3,cd:10,d:'Rate-limit repeat calls per lender at the gateway.',dmg:{retry:80,next:15},src:()=>'always available'},
+   {id:'scale',n:'Scale out',ag:'AWS',role:'ops',cast:4,cd:10,d:'Raise capacity and concurrency.',dmg:{retry:55},src:()=>'always available'},
+   {id:'clear',n:'Bulk-clear wrong flags',ag:'QA',role:'po',cast:2,cd:0,once:1,util:1,d:'Withdraw the flags on assessments already known to be affected.',dmg:{stale:50,next:35,_:15},req:()=>D['2.3.tell']===0,src:()=>D['2.3.tell']===0?'2.3: lenders already hold their affected-assessment lists':'needs the affected-assessment lists (2.3)'},
+   {id:'rollback',n:'Roll back the fix',ag:'PIP',role:'ops',cast:()=>[3,2,8][D['4.1.strategy']??2],cd:0,once:1,util:1,d:'A blunt fix: ends the incident, and the retry bug is live again.',src:()=>'4.1: '+(['canary (~3 s)','blue/green (~2 s)','all-at-once (~8 s)'][D['4.1.strategy']??2])},
+   {id:'notify',n:'Notify lenders',ag:'PRD',role:'po',cast:()=>D['2.3.tell']===0?1:2,cd:0,once:1,util:1,d:'Tell lenders which flags to distrust until this is over.',src:()=>D['2.3.tell']===0?'2.3: lender contacts and lists are ready (fast)':'always available'},
+   {id:'escalate',n:'Page incident commander',ag:'DLV',role:'pm',cast:2,cd:0,once:1,util:1,d:'An IC coordinates the response, so all casts are 40% faster.',src:()=>'always available'},
+  ];
+  return {
+    h:'Month-end resubmission wave',
+    p:'Month end. Brokers push every pending application, and lender gateways retry hard. The fix has been live for a week. Flag-rate alarms are firing.',
+    unshipped:'Month end. Brokers push every pending application, and lender gateways retry hard. Flag-rate alarms are firing.',
+    comms:'Lenders who know which flags to distrust can keep lending.',
+    abil,waves,rps:5200,
+    logs:{notify:'Lenders told which ID-VEL-02 flags to send to manual review rather than decline.',rollback:'Rolled back. The original retry bug is live again, and Kestrel\'s ticket reopens.'},
+    result:{won:'All three waves handled. ID-VEL-02 kept counting lenders, not requests.',rollback:'The incident is over, but the fix is out and the bug it fixed is back.',breach:'The error budget ran out. Lenders spent month end reviewing flags they could not trust.'},
+    score:{notified:['Lenders notified','Lenders never notified'],rolled:'Fix rolled back'},
+    why(){const it=[];
+      it.push([`Wave 1 was <b>${W1.n.toLowerCase()}</b>`,kind==='retry'?'good':'bad',kind==='retry'?(D['2.3.fixed']===0?'2.3 defined fixed as one count per lender, so month-end retries were only load.':'The replay in 3.6 failed the 5-minute rule and forced the real fix before it shipped.'):kind==='next'?'2.3 defined fixed as "ignore repeats within 5 minutes", and nothing replayed real traffic to show that it was not enough.':'2.3 raised the threshold instead of fixing the count.']);
+      if(sib)it.push(['Severity +15: ID-VEL-01 changed without a test','bad','3.5 widened the fix to a second signal that had no requirement in this intent.']);
+      it.push([staleOk?'Stale counters were already repaired':data===2?'Deleted counters hid a real ring':'Stale counters flagged honest applicants again',staleOk?'good':'bad',data===0?(order?'4.1 ran the recompute before the code fix.':'2.3 chose to recompute, and 4.1 shipped the code first.'):data===1?'2.3 left the inflated counts to age out.':'2.3 deleted the counters.']);
+      it.push([reconOk?'The reconcile job had been fixed too':'The reconcile job re-inflated the counts',reconOk?'good':'bad',reconOk?'The upstream-coverage sensor at 2.3 caught that CQ-08 was missing, and someone asked for the fix.':stale()?'2.1 trusted a stale codekb, so the second writer was never found.':scope().sensors?'The upstream-coverage sensor flagged CQ-08 at 2.3, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed the requirements had skipped CQ-08.`]);
+      return it},
+  };
+}
+
+function debrief(C2,D){
+  C2('2.1',D['2.1.scan']!==2,D['2.1.scan']===2?'The fix was planned against a three-week-old map of the code.':'Rescanning before fixing found the cause and the second writer.');
+  C2('2.3',D['2.3.fixed']===0,D['2.3.fixed']===0?'"Each lender counts once" was a definition of fixed that a test could prove.':D['2.3.fixed']===1?'"Ignore repeats within 5 minutes" fixed one retry pattern, not the rule.':'Raising the threshold hid the bug and weakened the signal.');
+  C2('2.3',D['2.3.data']===0,D['2.3.data']===0?'Recomputing the counts cleared the applicants the bug had already flagged.':'The code was fixed and the damaged data was not.');
+  C2('2.3',D['2.3.tell']===0,D['2.3.tell']===0?'Lenders got the IDs of their affected assessments and could correct their own decisions.':'Lenders could not tell which of their decisions rested on a wrong flag.');
+  if(!stale())C2('SENS',!!S.flags.cq08,S.flags.cq08?'The upstream-coverage sensor caught a finding the requirements had skipped (CQ-08).':'The reconciliation job (CQ-08) never made it into the requirements.');
+  if(D['3.5.sibling']!==undefined)C2('3.5',D['3.5.sibling']===0,D['3.5.sibling']===0?'The same defect in ID-VEL-01 went to the backlog as its own bugfix.':D['3.5.sibling']===1?'The fix grew to cover a second signal that nobody had specified or tested.':'A second copy of the defect was found and then forgotten.');
+  if(D['3.6.proof']!==undefined)C2('3.6',D['3.6.proof']===0,D['3.6.proof']===0?'Replaying the traffic that exposed the bug made Build and Test real evidence.':'The fix shipped on the same unit tests that had passed when the bug shipped.');
+  if(D['4.1.order']!==undefined)C2('4.1',D['4.1.order']===0,D['4.1.order']===0?'Code first, then recompute: the corrected data stayed correct.':'Recomputing before the code fix let retries undo the correction.');
+  if(D['4.4.alarm']!==undefined)C2('4.4',D['4.4.alarm']===0,D['4.4.alarm']===0?'An alarm on flag rate per lender watches what the service says, not only whether it answers.':'Every alarm still watches latency and errors, which this bug never touched.');
+}
+
+return {
+ id:'bug',n:'The Retry Bug',kind:'production bug',col:'#FF9F5A',
+ tag:'ID-VEL-02 is flagging honest applicants whose lender retried a timed-out call.',
+ d:'Three weeks after Network Velocity shipped, Kestrel Finance reports honest applicants sent to manual review. Its gateway retries a slow /assess call, and the network counter treats every retry as another lender. Find it, say what fixed means, fix it and ship it.',
+ ask:ASK,intent:'vel02-retry-double-count',REC,KB,
+ boot:{repo:'aegle-api',ws:'brownfield · TypeScript + Python · 16,940 LOC · codekb found (21 days old)',note:'ID-VEL-02 is live for 40 lenders. Ticket LND-2291 is open: honest applicants are being flagged.'},
+ scopes:['bugfix','refactor','express'],best:'bugfix',
+ fit:{
+  bugfix:{v:'best',t:'One defect with a known symptom: read the code, say what fixed means, change it, test it, ship it. Reviewers and sensors still check the work.'},
+  refactor:{v:'ok',t:'The bugfix path plus Functional Design. More than this fix needs, but it pins the counting rule down before the code moves.'},
+  express:{v:'poor',t:'No reviewers, no sensors and no plan approval. Nothing checks a change to a live fraud signal before 40 lenders get it.'},
+ },
+ composer:{E:[.18,.44,.52,.41,.30],why:'Intent ambiguity is low: the symptom is known and reproducible. The uncertainty sits in the code (a three-week-old knowledge base) and in how the fix is verified. Bugfix keeps the code scan, a reviewer and the sensors. Express would drop every check, and Refactor adds a design stage this fix can live without.'},
+ DEC,stages,units,
+ midBuild:{unit:'aegle',dec:'3.5.sibling'},
+ loopBack(){
+  if(dv('3.6.proof')!==0||setFix())return null;
+  S.flags.setFix=true;
+  return {why:dv('2.3.fixed')===1?'Replay failure: 212 of Kestrel\'s applicants are still flagged. Their lender re-checked them the next morning, well outside the 5-minute window.':'Replay failure: 38 single-lender applicants are still flagged. Their gateway retried five times or more, so they clear even the raised threshold.',
+          fixed:'Second run: green. The counter now stores the set of lenders seen, so no number of repeats can raise it.'}},
+ deploy:{what:'the counter fix',all:'No blast-radius control: every lender got the new counter in the same second.'},
+ traceGap:()=>S.ran.has('2.3')&&!stale()&&!S.flags.cq08,
+ humanSensor:'2.3',
+ badge:{ic:'🧮',n:'Cause, Not Symptom',d:'Define fixed as the behaviour, prove it with the traffic that broke it, and repair the data.',test:()=>S.dec['2.3.fixed']===0&&S.dec['3.6.proof']===0&&S.dec['2.3.data']===0},
+ incident,debrief,
+};
+})();
+
+/* Scenario: the second region. An infrastructure change under a live fraud signal.
+   Written for the stages that infra and express run. Everything here is story. */
+SCENARIOS.infra=(()=>{
+const REC='aidlc/spaces/identity/intents/270112-second-region/';
+const KB='aidlc/spaces/identity/codekb/aegle-api/';
+const ASK='Run /assess in a second region so it survives a regional outage: back in 15 minutes, at most 1 minute of data lost';
+const NOT=()=>`not designed: that stage is not in the ${scope().n} scope`;
+const driftOk=()=>dv('2.2.cdk')===0||dv('2.1.state')===0;                 // the hand-made console change is known and handled
+const keyOk=()=>dv('3.4.key')===0||!!S.flags.keyFix;                      // both regions compute the same fingerprint
+const counterOk=()=>dv('3.3.counter')===0||!!S.flags.counterFix;          // two regions can never overwrite each other's sightings
+const capOk=()=>dv('3.4.cap')===0&&driftOk();                             // one region can carry everything
+const autoFo=()=>dv('3.2.fo')===0;
+
+const DEC={
+ '2.1.state':{own:'ops',by:'DEV',q:'The CDK code says what should be deployed. Do I check it against what is actually running?',ctx:'Reverse Engineering reads the repository. Infrastructure also has a second source of truth: the account.',o:[
+  {t:'Yes: run a drift check against the live stacks first',s:10,q:5,fb:'One difference: the counter table\'s capacity mode was changed by hand, in the console, during the quarter-end incident.'},
+  {t:'No. Infrastructure is code here, so the code is the truth.',s:2,r:10,fb:'It was, until somebody clicked in the console at 02:00 during an incident.'}]},
+ '2.2.cdk':{own:'ops',by:'PIP',q:'Every infrastructure change in the last 90 days went through CDK, except one: the counter table was switched to on-demand capacity in the console during the quarter-end incident. Is "infrastructure changes go through CDK only" how this team works?',ctx:'Practices you confirm are promoted to team memory when you approve this stage. Agents then apply them on every future intent.',o:[
+  {t:'Yes, and bring the table back under CDK before this work starts',s:10,q:5,fb:'The rule and the account agree again, so the next deploy changes only what the plan says.'},
+  {t:'Yes, but leave the table alone. It works.',s:4,r:5,fb:'The rule is on paper and the exception is in production. The next deploy of that stack will quietly undo the manual change.'},
+  {t:'No. Sometimes the console is faster.',s:0,r:10,fb:'Then no plan the agents write can be trusted to describe what is running.'}]},
+ '2.3.target':{own:'po',by:'PRD',q:'The contract draft says /assess must "survive a regional outage". What do we commit to?',ctx:'Requirements for infrastructure are numbers somebody else will hold you to.',o:[
+  {t:'Back within 15 minutes, with at most 1 minute of data lost: the figures in clause 9.3 of the draft',s:10,q:5,fb:'Sourced, testable, and exactly what the lenders asked for.'},
+  {t:'Zero downtime and zero data loss',s:3,r:5,fb:'A different architecture at several times the cost, and more than the contract asks for.'},
+  {t:'"High availability". Leave the numbers to engineering.',s:0,r:10,fb:'A requirement nobody can test, for a clause a lender\'s lawyer certainly will.'}]},
+ '2.3.where':{own:'sec',by:'PRD',q:'Which region is the second one?',ctx:'Fingerprints and counters are derived from applicants\' personal data.',o:[
+  {t:'eu-central-1 (Frankfurt): inside the EU, as the data-sharing agreement requires',s:10,r:-5,fb:'No change to the agreement or the DPIA.'},
+  {t:'eu-west-2 (London): close and cheap',s:5,fb:'It is outside the EU, so the DPIA needs amending before any data can land there. That is weeks, not days.'},
+  {t:'us-east-1: the cheapest, with every service available',s:0,r:20,fb:'Data derived from EU applicants would be stored in the US. The agreement and the DPIA both say EU only.'}]},
+ '3.2.mode':{own:'ops',by:'ARC',q:'How do the two regions share the work?',ctx:'NFR Requirements turns "survive an outage" into a shape the design has to meet.',o:[
+  {t:'Active-active: both regions serve lenders all the time, so a failover is ordinary traffic',s:10,fb:'The second region is exercised by every request, every day.'},
+  {t:'Active-passive: the second region waits and is switched on in an outage',s:5,fb:'Cheaper. The standby is only ever tested for real on the worst day.'},
+  {t:'Backup and restore into the second region',s:0,r:15,fb:'A restore takes hours. The requirement is 15 minutes.'}]},
+ '3.2.fo':{own:'ops',by:'ARC',q:'Who decides to fail over?',ctx:'The 15 minutes start when the region degrades, not when somebody notices.',o:[
+  {t:'Route 53 health checks, automatically, with a manual override',s:10,fb:'Traffic moves in about a minute, whoever is or is not awake.'},
+  {t:'The on-call engineer, following a runbook',s:3,r:10,fb:'At 03:00, being paged, finding the runbook and deciding uses most of the 15 minutes before anything has moved.'}]},
+ '3.3.counter':{own:'eng',by:'ARC',q:'Both regions will write to the same counters. A DynamoDB global table settles two writes to one item by keeping the later one. How are the counters stored?',ctx:'NFR Design. This is the question the whole change turns on.',o:[
+  {t:'One item per identity per region, merged when read',s:10,q:5,fb:'No two regions ever write the same item, so nothing can be overwritten.'},
+  {t:'Send every write to eu-west-1 and replicate outwards',s:3,r:10,fb:'Then Frankfurt cannot record a sighting when eu-west-1 is the region that is down.'},
+  {t:'One item per identity, replicated. Accept that the later write wins.',s:2,r:15,fb:'A ring hitting both regions in the same second loses sightings, which is exactly when ID-VEL-02 matters.'}]},
+ '3.4.key':{own:'sec',by:'AWS',q:'Fingerprints are HMACs made with a KMS key in eu-west-1. What does the second region use?',ctx:'Infrastructure Design. The counters are keyed by fingerprint.',o:[
+  {t:'A multi-Region replica of the same key, so both regions compute the same fingerprint',s:10,r:-5,fb:'One identity, one fingerprint, wherever the lender\'s request lands.'},
+  {t:'Call KMS in eu-west-1 from both regions',s:2,r:10,fb:'Now Frankfurt needs eu-west-1 for every assessment, which defeats the purpose of having it.'},
+  {t:'A new key in the second region',s:0,r:20,fb:'The same person gets a different fingerprint in each region. Their counters never meet, and a ring split across regions disappears.'}]},
+ '3.4.cap':{own:'ops',by:'AWS',q:'After a failover, one region carries all the traffic. How is each region sized?',ctx:'AWS Platform is drafting the infrastructure specification.',o:[
+  {t:'Each region can carry 100% alone: on-demand tables, and concurrency limits set for the full load',s:10,fb:'The surviving region was built for the day it is the only one.'},
+  {t:'Each region is sized for its half',s:0,r:15,fb:'The region that survives gets double its capacity at the moment it is the only one left.'}]},
+ '3.5.replace':{own:'ops',by:'DEV',q:'<code>cdk diff</code> says that turning the counter table into a global table will <b>replace</b> it. A replacement is a new, empty table. What do I do?',ctx:'A question raised mid-build. The agent stops to ask before it does something that cannot be undone.',o:[
+  {t:'Stop. Add the replica to the existing table in place, in two deploys, and keep the retain policy on',s:10,q:5,fb:'Fourteen days of counters stay exactly where they are.'},
+  {t:'Create a new global table beside the old one, and write to both during a cutover',s:7,fb:'Safe, and slower: two tables to keep in step for a fortnight.'},
+  {t:'Let it replace. The counters rebuild in 14 days.',s:0,r:20,fb:'Every counter in the network is gone, and ID-VEL-02 is blind for two weeks.'}]},
+ '3.6.gameday':{own:'ops',by:'QA',q:'How do we test a second region?',ctx:'Build and Test is the evidence. The thing being built is a response to a failure.',o:[
+  {t:'A game day in staging: cut eu-west-1 off, and time the failover against the 15 minutes',s:10,q:5,fb:'The only test that exercises what was actually built.'},
+  {t:'cdk synth, unit tests on the templates and a clean deploy to staging',s:2,r:10,fb:'That proves the second region exists. It does not prove that anything moves to it.'}]},
+ '3.7.gates':{own:'sec',by:'PIP',q:'Which checks stop an infrastructure change from merging?',ctx:'Quality gates are recorded in quality-gates.md.',o:[
+  {t:'cdk diff on every pull request; policy checks and any replacement of a stateful resource block the merge',s:10,fb:'Nobody can replace a table by accident again.'},
+  {t:'Report them, and let the author decide',s:2,r:10,fb:'The replacement of a table full of data would be one line in a report nobody has to read.'}]},
+ '4.1.strategy':{own:'ops',by:'PIP',q:'How does traffic move onto the two-region setup?',ctx:'This decides how quickly and safely you can undo it.',o:[
+  {t:'Weighted routing: 5% → 25% → 100%, rolling back automatically on errors',s:10,fb:'A small share of real traffic finds the problems first.'},
+  {t:'Blue/green: one DNS switch',s:6,fb:'Fast to flip back, but every lender moves in the same minute.'},
+  {t:'All at once',s:0,r:10,fb:'No way to limit the damage, and DNS takes its time to come back.'}]},
+ '4.2.order':{own:'ops',by:'AWS',q:'The second region needs the 14 days of counters that already exist. When does it start taking traffic?',ctx:'Environment Provisioning validates what was built before anything depends on it.',o:[
+  {t:'After replication reports the table in sync, and a sample of counters matches in both regions',s:10,fb:'Frankfurt answers its first request knowing everything eu-west-1 knows.'},
+  {t:'Straight away. It will catch up.',s:0,r:15,fb:'For the first hours Frankfurt answers from half-empty counters, and misses rings that eu-west-1 can see.'}]},
+ '4.3.window':{own:'pm',by:'PIP',q:'When does the second region go live?',ctx:'The contract review is on Monday.',o:[
+  {t:'Tuesday 10:00, with the whole team online',s:10,fb:'If routing misbehaves, everyone who understands it is there.'},
+  {t:'Friday 17:00, so it is done before Monday\'s review',s:0,r:10,fb:'A new region taking live traffic for its first weekend, with nobody watching.'}]},
+ '4.4.alarm':{own:'ops',by:'OPS',q:'What do we alarm on, now that there are two regions?',ctx:'Observability Setup.',o:[
+  {t:'SLO burn for each region separately, plus replication lag against the 1-minute limit',s:10,q:5,fb:'A failing region cannot hide behind a healthy one, and the data-loss limit is watched.'},
+  {t:'The same global alarms as before',s:2,r:10,fb:'A global average of one healthy region and one failing region looks fine for a long time.'}]},
+};
+
+const units=()=>[{id:'aegle-infra',kind:'infrastructure',st:'(no Units in this scope)',plan:'second region: stacks, routing, key and table replication',files:18,tests:46}];
+const keyTxt=()=>pkd('3.4.key',['multi-Region replica of the fingerprint key','<span class="wa">KMS in eu-west-1, called from both regions</span>',S.flags.keyFix?'multi-Region replica (after the game day failed)':'<span class="no">a new, separate key</span>'],S.flags.keyFix?'multi-Region replica (after the game day failed)':'<span class="wa">a new key per regional stack (the CDK default). '+NOT()+'</span>');
+const counterTxt=()=>pkd('3.3.counter',['one item per identity per region, merged on read','<span class="wa">all writes go to eu-west-1</span>',S.flags.counterFix?'one item per identity per region (after the game day failed)':'<span class="no">one replicated item; the later write wins</span>'],S.flags.counterFix?'one item per identity per region (after the game day failed)':'<span class="wa">one replicated item; the later write wins. '+NOT()+'</span>');
+const regionTxt=()=>pk('2.3.where',['eu-central-1','eu-west-2','us-east-1']);
+
+const stages={
+...initStages(REC,{ask:ASK,intent:'second-region (contract clause 9.3)',ws:'brownfield · AWS CDK v2 · 3 stacks · 1 region (eu-west-1) · repo <code>aegle-api</code>'}),
+
+'2.1':{
+ why:'For infrastructure the repository is only half the picture. The other half is what is running.',
+ dec:['2.1.state'],
+ files:[
+  {p:KB+'architecture.md',b:()=>PRE(`eu-west-1 only
+lender ─▶ Route 53 ─▶ API GW ─▶ λ assess ─▶ network-counter (DynamoDB)
+                                   └─▶ KMS alias/aegle-fp-hmac`)+P(pk('2.1.state',['Drift check: <b class="wa">network-counter is on-demand in the account and provisioned in the code</b> (changed by hand during the quarter-end incident).','<span class="wa">No drift check run.</span> The diagram shows what the code says.']))},
+  {p:KB+'technology-stack.md',b:()=>L(['AWS CDK v2, 3 stacks: api, data, ops','DynamoDB: network-counter, identity-events','KMS: fingerprint HMAC key, single-Region','Route 53: one record, no health checks'])},
+  {p:KB+'reverse-engineering-timestamp.md',opt:1,b:()=>P('Diff scan at 2027-01-12T09:20Z: infra/ and cdk.json.')}],
+ pre:[['DEV','Scanning <code>infra/</code>: three stacks, one region, one hand-drawn diagram from 2025.']],
+ post:[['DEV','Architecture and stack inventory written to the space-level codekb.']],
+ finds:()=>dv('2.1.state')===1?[{by:'DEV',t:'The scan describes the code. Nobody has compared it with the running account.',src:'architecture.md:L5',fix:'2.1.state',ch:'Run a drift check against the live stacks'}]:[]},
+
+'2.2':{
+ dec:['2.2.cdk'],
+ files:[{p:REC+'inception/practices-discovery/discovered-rules.md',b:()=>T(['Rule','Evidence','Status'],[['ALWAYS change infrastructure through CDK','41 of 42 changes in 90 d',pk('2.2.cdk',['<span class="ok">confirmed; exception repaired</span>','<span class="wa">confirmed; exception left in place</span>','<span class="no">rejected</span>'])],['PRs need 1 approval + green CI','branch protection','affirmed'],['Stateful resources keep <code>RemovalPolicy.RETAIN</code>','all 4 tables','affirmed']])},
+        {p:REC+'inception/practices-discovery/team-practices.md',b:()=>L(['Trunk-based, short-lived branches','CDK pipeline: dev → staging → prod','One console change in 90 days: network-counter capacity mode, 30 September, 02:14'])},
+        {p:REC+'inception/practices-discovery/evidence.md',opt:1,b:()=>P('CloudTrail: UpdateTable on network-counter by a console session during the quarter-end incident. No matching commit.')}],
+ pre:[['PIP','Drafting the team\'s infrastructure practices from the repository and 90 days of CloudTrail.'],['PIP','Almost everything goes through CDK. I found one change that did not.']],
+ post:[['PIP','<code>PRACTICES_DISCOVERED</code>. The drafts are promoted to team memory only when this stage is approved.']],
+ onApprove:()=>{S.mem.practices=true;writeMemory('2.2');audit('PRACTICES_AFFIRMED','5 sections → memory/team.md · 1 rule → memory/project.md')},
+ finds:()=>dv('2.2.cdk')===1?[{by:'PIP',t:'The account and the code disagree about the counter table. The next deploy of the data stack will set it back to provisioned capacity.',src:'discovered-rules.md:L1',fix:'2.2.cdk',ch:'Bring the table back under CDK first'}]:dv('2.2.cdk')===2?[{by:'PIP',t:'Without the rule, a plan generated from the code cannot be trusted to describe what is running.',src:'discovered-rules.md:L1',fix:'2.2.cdk',ch:'Affirm CDK-only and repair the exception'}]:[]},
+
+'2.3':{
+ dec:['2.3.target','2.3.where'],
+ files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Functional')+L(['FR-1: /assess keeps answering when one AWS region is lost','FR-2: ID-VEL-02 gives the same answer whichever region takes the request'])+H('Non-functional')+L(['NFR-1 (RTO): '+pk('2.3.target',['back within 15 minutes '+SRC('contract draft, clause 9.3'),'<span class="wa">zero downtime</span>','<span class="no">"high availability"</span>']),'NFR-2 (RPO): '+pk('2.3.target',['at most 1 minute of sightings lost '+SRC('clause 9.3'),'<span class="wa">zero data loss</span>','<span class="no">not stated</span>']),'NFR-3 (residency): second region is '+pk('2.3.where',['eu-central-1, inside the EU '+SRC('DSA §4.5, DPIA'),'<span class="wa">eu-west-2: needs a DPIA amendment</span>','<span class="no">us-east-1: outside the EU</span>'])])},
+        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "FR-1": ["clause 9.3"], "NFR-1": ["clause 9.3"], "NFR-2": ["clause 9.3"], "NFR-3": ["DSA §4.5"] }')}],
+ pre:[['PRD','Requirements for an infrastructure change are mostly numbers. I need two decisions from humans: what we promise, and where.']],
+ post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the contract draft…']],
+ finds:()=>{const f=[];
+  if(dv('2.3.target')===1)f.push({by:'PLR',t:'Zero downtime and zero loss is not what clause 9.3 asks for, and nothing in scope can deliver it.',src:'requirements.md:NFR-1',fix:'2.3.target',ch:'Commit to 15 minutes and 1 minute'});
+  if(dv('2.3.target')===2)f.push({by:'PLR',t:'"High availability" cannot be tested, and the contract clause has numbers in it.',src:'requirements.md:NFR-1',fix:'2.3.target',ch:'Commit to 15 minutes and 1 minute'});
+  if(dv('2.3.where')===2)f.push({by:'PLR',t:'us-east-1 puts data derived from EU applicants outside the EU, against DSA §4.5.',src:'requirements.md:NFR-3',fix:'2.3.where',ch:'Use eu-central-1'});
+  if(dv('2.3.where')===1)f.push({by:'PLR',t:'eu-west-2 is outside the EU. The DPIA would need amending before go-live, and the contract renews in eight weeks.',src:'requirements.md:NFR-3',fix:'2.3.where',ch:'Use eu-central-1'});
+  return f}},
+
+'3.2':{
+ dec:['3.2.mode','3.2.fo'],
+ files:[{p:REC+'construction/nfr-requirements/performance-requirements.md',b:()=>L(['Topology: '+pk('3.2.mode',['active-active; both regions serve all the time','<span class="wa">active-passive; the standby is switched on in an outage</span>','<span class="no">backup and restore</span>']),'Failover decision: '+pk('3.2.fo',['Route 53 health checks, automatic, manual override','<span class="wa">on-call engineer, by runbook</span>']),'RTO 15 min · RPO 1 min '+SRC('NFR-1, NFR-2')])},
+        {p:REC+'construction/nfr-requirements/security-requirements.md',b:()=>L(['Data stays in: eu-west-1 and '+regionTxt(),'The fingerprint key never leaves KMS','PII never logged, in either region'])},
+        {p:REC+'construction/nfr-requirements/observability-requirements.md',opt:1,b:()=>L(['Every metric is tagged by region','Replication lag is a first-class metric'])}],
+ pre:[['ARC','NFR requirements for the second region: how the regions share work, and who decides to fail over.']],
+ post:[['ARC','Writing the performance, security and observability requirements.'],['ARV','Reviewing the NFR requirements…']],
+ finds:()=>{const f=[];
+  if(dv('3.2.mode')===2)f.push({by:'ARV',t:'Backup and restore cannot meet a 15-minute RTO: restoring the counter table alone takes over an hour.',src:'performance-requirements.md:L1',fix:'3.2.mode',ch:'Run both regions active-active'});
+  if(dv('3.2.fo')===1)f.push({by:'ARV',t:'A manual failover spends most of the RTO on a person waking up and deciding.',src:'performance-requirements.md:L2',fix:'3.2.fo',ch:'Fail over on health checks, automatically'});
+  return f}},
+
+'3.3':{
+ dec:['3.3.counter'],
+ files:[{p:REC+'construction/nfr-design/performance-design.md',b:()=>L(['Counter storage: '+counterTxt(),'Failover: '+pkd('3.2.fo',['Route 53 failover records on per-region health checks','<span class="wa">manual DNS change, by runbook</span>'],NOT()),'Replication lag: '+(S.flags.lag?'<b>bounded: writers back off above 30 s of lag, and lag is alarmed against the 1-minute RPO</b>':'<span class="wa">not addressed</span>')])},
+        {p:REC+'construction/nfr-design/security-design.md',opt:1,b:()=>L(['Both regions use the same key policy','No cross-region calls on the assessment path'])}],
+ pre:[['ARC','Designing how two regions write the same counters without undoing each other\'s work.']],
+ post:[['ARC','Writing the NFR design.'],['ARV','Reviewing the NFR design…']],
+ sfail:()=>S.flags.lag?null:{s:'traceability',t:'NFR-2 (at most 1 minute of data lost) maps to no design element. Nothing here says how replication lag is bounded or watched.',src:'traceability.json: NFR-2',key:'lag',ch:'Bound replication lag and alarm on it',fixmsg:'Design added: writers back off above 30 s of lag, and lag is alarmed against the 1-minute RPO. Sensor re-run: pass.'},
+ finds:()=>dv('3.3.counter')===2&&!S.flags.counterFix?[{by:'ARV',t:'With one replicated item, two regions that record a sighting in the same second leave only one of them.',src:'performance-design.md:L1',fix:'3.3.counter',ch:'Store one counter item per region'}]:dv('3.3.counter')===1?[{by:'ARV',t:'If all writes go to eu-west-1, Frankfurt cannot record anything during the outage it exists for.',src:'performance-design.md:L1',fix:'3.3.counter',ch:'Store one counter item per region'}]:[]},
+
+'3.4':{
+ dec:['3.4.key','3.4.cap'],
+ files:[{p:REC+'construction/infrastructure-design/infrastructure-specification.md',b:()=>T(['Resource','Spec'],[['Regions','eu-west-1 + '+regionTxt()],['KMS fingerprint key',keyTxt()],['DynamoDB network-counter','global table, '+pk('3.4.cap',['on-demand in both regions','<span class="wa">provisioned for half the load in each region</span>'])],['Lambda assess',pk('3.4.cap',['concurrency limit set for 100% of traffic in each region','<span class="wa">concurrency limit set for 50% in each region</span>'])],['Route 53',pkd('3.2.fo',['failover records + health checks','single weighted record, changed by hand'],'not decided')]])},
+        {p:REC+'construction/infrastructure-design/monitoring-design.md',opt:1,b:()=>L(['One dashboard per region, one combined','Replication lag per table'])},
+        {p:REC+'construction/infrastructure-design/cicd-pipeline.md',opt:1,b:()=>L(['CDK pipeline deploys region by region, never both at once'])}],
+ pre:[['AWS','Specifying the second region: key, tables, compute and routing.']],
+ post:[['AWS','Writing the infrastructure specification.'],['ARV','Reviewing the infrastructure design…']],
+ finds:()=>{const f=[];
+  if(dv('3.4.key')===2&&!S.flags.keyFix)f.push({by:'ARV',t:'Two keys give one person two fingerprints. Counters in the two regions can never match.',src:'infrastructure-specification.md:L2',fix:'3.4.key',ch:'Use a multi-Region replica of the key'});
+  if(dv('3.4.key')===1)f.push({by:'ARV',t:'Calling KMS in eu-west-1 from Frankfurt makes the second region depend on the first.',src:'infrastructure-specification.md:L2',fix:'3.4.key',ch:'Use a multi-Region replica of the key'});
+  if(dv('3.4.cap')===1)f.push({by:'ARV',t:'After a failover one region takes all the traffic. Sized for half, it throttles.',src:'infrastructure-specification.md:L3',fix:'3.4.cap',ch:'Size each region for 100%'});
+  return f}},
+
+'3.5':{
+ files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>infra/region-stack.ts</code>: the api and data stacks, instantiated once per region','<code>infra/kms.ts</code>: '+keyTxt(),'<code>infra/data-stack.ts</code>: network-counter becomes a global table: '+pk('3.5.replace',['replica added in place, in two deploys; RETAIN kept','new global table beside the old one; dual writes during cutover','<span class="no">replaced with a new, empty table</span>'],0),'<code>src/network/counter.ts</code>: '+counterTxt(),driftOk()?'Capacity mode: on-demand, now in code':'<span class="wa">Capacity mode: the code still says provisioned. Nobody has compared it with the account.</span>'])},
+        {p:REC+'construction/code-generation/code-summary.md',b:()=>T(['Change','Files','Tests'],[['region stacks and routing',7,18],['key replication',3,6],['global table',4,11],['counter read/write',4,11]])+P('Counter table: '+pk('3.5.replace',['existing data kept','existing data kept; two tables until cutover','<span class="no">existing data destroyed</span>'],0)+'.')},
+        {p:REC+'construction/code-generation/unit-test-instructions.md',opt:1,b:()=>PRE('npm test -- --coverage\nnpx cdk diff --all   # read it: look for "replace"')}],
+ pre:[['DEV','Drafting the code plan for the CDK change. No code is written until the plan is approved.']],
+ post:[['DEV','Stacks generated. Writing <code>code-summary.md</code>.'],['ARV','Reviewing the diff against the infrastructure design…']],
+ sfail:()=>({s:'required-sections',t:'code-summary.md is missing a required H2 heading.',src:'code-summary.md',auto:'DEV',fixmsg:'Heading restored. Sensor re-run: pass.'}),
+ finds:()=>dv('3.5.replace')===2?[{by:'ARV',t:'The diff replaces network-counter. Fourteen days of sightings for every lender would be deleted.',src:'infra/data-stack.ts:58',fix:'3.5.replace',ch:'Add the replica in place and keep RETAIN'}]:[]},
+
+'3.6':{
+ dec:['3.6.gameday'],
+ files:[{p:REC+'construction/build-and-test/test-results.md',b:()=>T(['Suite','Result'],[['unit + template assertions','<span class="ok">212 passed</span>'],['cdk synth, both regions','<span class="ok">clean</span>'],['game day: eu-west-1 cut off',pk('3.6.gameday',[autoFo()?'<span class="ok">traffic in Frankfurt after 70 s</span>':'<span class="wa">traffic in Frankfurt after 23 min (manual)</span>','<span class="wa">not run</span>'])],['game day: seeded ring split across regions',pk('3.6.gameday',[keyOk()&&counterOk()?'<span class="ok">ID-VEL-02 fires in both regions</span>':'<span class="no">no flag in Frankfurt</span>','<span class="wa">not run</span>'])]])},
+        {p:REC+'construction/build-and-test/build-instructions.md',opt:1,b:()=>PRE('npm ci && npm test && npx cdk synth --all'+(dv('3.6.gameday')===0?'\nmake gameday REGION=eu-west-1   # staging only':''))}],
+ pre:[['QA','Synthesising both regions and running the template tests.'],['QA','One question first: what would convince us that this works?']],
+ post:[['QA','Writing <code>test-results.md</code>.']],
+ finds:()=>dv('3.6.gameday')===1?[{by:'QA',t:'Nothing has ever sent traffic to the second region or taken the first one away.',src:'test-results.md:L3',fix:'3.6.gameday',ch:'Run a game day in staging'}]:[]},
+
+'3.7':{
+ dec:['3.7.gates'],
+ files:[{p:REC+'construction/ci-pipeline/quality-gates.md',b:()=>T(['Gate','Mode'],[['cdk diff posted on the PR','always'],['Replacement of a stateful resource',pk('3.7.gates',['blocking','advisory'])],['Policy checks (cdk-nag)',pk('3.7.gates',['blocking','advisory'])],['Template tests','blocking']])},
+        {p:REC+'construction/ci-pipeline/ci-config.md',opt:1,b:()=>PRE('on: pull_request\njobs: build · test · synth · diff · policy')},
+        {p:REC+'verification/phase-check-construction.md',opt:1,b:()=>P('Phase check: the change is built and tested, and every requirement has a passing test.')}],
+ pre:[['PIP','Configuring CI for infrastructure changes.']],
+ post:[['PIP','Writing CI config and quality gates, plus the Construction phase check.']],
+ finds:()=>dv('3.7.gates')===1?[{by:'PIP',t:'With advisory gates, a diff that replaces a table can be merged by anyone in a hurry.',src:'quality-gates.md:L2',fix:'3.7.gates',ch:'Block replacements and policy failures'}]:[]},
+
+'4.1':{
+ dec:['4.1.strategy'],
+ files:[{p:REC+'operation/deployment-pipeline/deployment-strategy.md',b:()=>P(pk('4.1.strategy',['<b>Weighted routing</b> 5% → 25% → 100% onto the two-region setup, 10 min bake each, automatic rollback on errors','<b>Blue/green</b>: one DNS switch, with flip-back','<b>All at once</b>']))},
+        {p:REC+'operation/deployment-pipeline/rollback-runbook.md',b:()=>L(['Trigger: error rate in either region, or counters that disagree between regions','Action: '+pk('4.1.strategy',['weights back to eu-west-1 only (~2 min)','flip DNS back (~1 min, plus TTL)','<span class="wa">redeploy the single-region records (~8 min, plus TTL)</span>']),'The replica can stay: removing traffic does not remove data'])},
+        {p:REC+'operation/deployment-pipeline/cd-config.md',opt:1,b:()=>PRE('pipeline: aegle-infra-cd\nstages: staging → prod (eu-west-1) → prod ('+regionTxt()+')')}],
+ pre:[['PIP','Planning how live traffic moves onto two regions, and how it moves back.']],
+ post:[['PIP','Writing the deployment strategy and rollback runbook.']],
+ finds:()=>dv('4.1.strategy')===2?[{by:'PIP',t:'All-at-once puts every lender on untried routing, and DNS caching slows any way back.',src:'deployment-strategy.md:L1',fix:'4.1.strategy',ch:'Shift traffic by weight, with auto-rollback'}]:[]},
+
+'4.2':{
+ dec:['4.2.order'],
+ files:[{p:REC+'operation/environment-provisioning/validation-report.md',b:()=>T(['Check','Result'],[['Region stacks deployed','<span class="ok">pass</span>'],['Same fingerprint in both regions for 1,000 test identities',keyOk()?'<span class="ok">1,000 of 1,000</span>':'<span class="no">0 of 1,000</span>'],['Counter table in sync before traffic',pk('4.2.order',['<span class="ok">in sync; 5,000 sampled counters match</span>','<span class="no">not checked</span>'])],['Capacity mode matches the code',driftOk()?'<span class="ok">pass</span>':'<span class="wa">not checked</span>']])},
+        {p:REC+'operation/environment-provisioning/environment-inventory.md',opt:1,b:()=>L(['staging (eu-west-1, '+regionTxt()+')','prod (eu-west-1, '+regionTxt()+')'])}],
+ pre:[['AWS','Provisioning the second region with CDK and validating it against the specification.']],
+ post:[['AWS','Writing the inventory and validation report.']],
+ finds:()=>dv('4.2.order')===1?[{by:'AWS',t:'Until replication catches up, the second region answers from counters that are missing days of sightings.',src:'validation-report.md:L3',fix:'4.2.order',ch:'Wait for the table to be in sync'}]:[]},
+
+'4.3':{
+ dec:['4.3.window'],
+ files:[{p:REC+'operation/deployment-execution/deployment-log.md',b:()=>PRE(pk('4.1.strategy',['09:58 weight 5%  ✓ healthy in both regions\n10:08 weight 25% ✓ healthy\n10:18 100%       ✓','10:00 two-region records live ✓\n10:05 flip ✓','10:00 two-region records live ✓']))},
+        {p:REC+'operation/deployment-execution/smoke-test-results.md',b:()=>L(['/assess answers from both regions ✓',keyOk()&&counterOk()?'seeded ring split across regions → ID-VEL-02 in both ✓':'<span class="no">seeded ring split across regions → no flag ✗</span>',capOk()?'each region holds a 100% load test for 10 min ✓':'<span class="wa">single-region load test: not run</span>'])}],
+ pre:[['PIP','Ready to put live traffic on two regions. The window is a human call.']],
+ post:[['PIP','Writing the deployment log and smoke test results.']],
+ finds:()=>dv('4.3.window')===1?[{by:'PIP',t:'A Friday 17:00 go-live gives a new region its first weekend of live traffic with nobody watching.',src:'deployment-log.md:L1',fix:'4.3.window',ch:'Move to Tuesday 10:00'}]:[]},
+
+'4.4':{
+ dec:['4.4.alarm'],
+ files:[{p:REC+'operation/observability-setup/alarms.md',b:()=>L(pk('4.4.alarm',[['fast and slow SLO burn, <b>per region</b> → page','<b>replication lag above 30 s → page</b> (RPO is 1 minute)','health-check state change → page'],['global SLO burn → page (unchanged)']]))},
+        {p:REC+'operation/observability-setup/slo-config.md',b:()=>PRE(dv('4.4.alarm')===0?'slo: assess-availability  target: 99.9%  window: 30d  group_by: region\nslo: replication-lag      p99 < 30s':'slo: assess-availability  target: 99.9%  window: 30d   # global, unchanged')},
+        {p:REC+'operation/observability-setup/dashboards.md',opt:1,b:()=>L(['One dashboard per region, one combined','Counter agreement between regions (sampled)'])}],
+ pre:[['OPS','Rewiring the dashboards and alarms for two regions.']],
+ post:[['OPS','Writing SLO config, alarms and dashboards.']],
+ finds:()=>dv('4.4.alarm')===1?[{by:'OPS',t:'A global alarm averages a failing region with a healthy one, and nothing watches the 1-minute data-loss limit.',src:'alarms.md:L1',fix:'4.4.alarm',ch:'Alarm per region and on replication lag'}]:[]},
+};
+
+/* ---------- the incident: the day the second region was built for ---------- */
+function incident(D){
+  const fo=autoFo(),key=keyOk(),ctr=counterOk(),cap=capOk(),lag=!!S.flags.lag,drift=driftOk();
+  const no=id=>D[id]===undefined;
+  const data=!key?{id:'key',n:'Fingerprints do not match',sev:95,chart:'err',sym:'Frankfurt is returning no ID-VEL-02 flags at all, for identities that were flagged an hour ago.',rc:no('3.4.key')?`Infrastructure Design is not in the ${scope().n} scope, so each regional stack made its own key. One person now has two fingerprints.`:'3.4 gave the second region its own key. One person now has two fingerprints.'}
+    :!ctr?{id:'lww',n:'Sightings overwritten',sev:80,chart:'err',sym:'Counts in Frankfurt are lower than they were in eu-west-1 for the same identities.',rc:no('3.3.counter')?`NFR Design is not in the ${scope().n} scope, so the counter was replicated as it stood: one item, and the later write wins.`:D['3.3.counter']===1?'3.3 sent every write to eu-west-1, which is the region that is down. Frankfurt is recording nothing.':'3.3 kept one replicated item per identity, so writes from two regions overwrote each other.'}
+    :{id:'data',n:'Counters in Frankfurt',sev:40,chart:'err',sym:'Fraud ops is checking whether Frankfurt knows what eu-west-1 knew.',rc:'It does.',auto:true,autoLog:'The same key in both regions, and one counter item per region: Frankfurt has every sighting eu-west-1 had.'};
+  const third=!cap?{id:'cap',n:'Frankfurt is throttling',sev:85,chart:'p99',sym:'p99 in Frankfurt is at <b>1.9 s</b>. DynamoDB and Lambda are both throttling.',rc:!drift?'The deploy set the counter table back to provisioned capacity, because nobody had put the hand-made change into code. Frankfurt inherited it.':no('3.4.cap')?`Infrastructure Design is not in the ${scope().n} scope, so nobody sized a region to carry everything.`:'3.4 sized each region for half the traffic.'}
+    :!lag?{id:'lag',n:'Replication lag',sev:65,chart:'err',sym:'Frankfurt\'s counters are 9 minutes behind. Nobody knew until a lender asked.',rc:no('3.3.counter')?`NFR Design is not in the ${scope().n} scope, so nothing bounds or watches replication lag.`:scope().sensors?'The traceability sensor at 3.3 flagged that the 1-minute limit had no design, and it was accepted as risk.':'Nothing bounds or watches replication lag.'}
+    :{id:'load',n:'One region, all the traffic',sev:40,chart:'rps',sym:'Frankfurt is carrying 100% of assessments.',rc:'It was sized to. It only needs watching.'};
+  const waves=[
+    {id:'fo',n:'Traffic is still going to eu-west-1',sev:85,chart:'err',sym:'Half of all assessments are failing. Requests are still being routed to the degraded region.',
+     rc:no('3.2.fo')?`NFR Requirements is not in the ${scope().n} scope, so nobody decided who fails over. It is a person, and they are still reading.`:'3.2 left the failover decision to a person with a runbook.',
+     auto:fo,autoLog:'Route 53 health checks took eu-west-1 out after 70 seconds. Lenders are being served from Frankfurt.'},
+    data,third,
+  ];
+  const abil=[
+   {id:'investigate',n:'Investigate',ag:'OPS',role:'ops',cast:()=>D['4.4.alarm']===0?1:2,cd:0,util:1,d:'Read the per-region dashboards and traces to find the cause.',src:()=>D['4.4.alarm']===0?'4.4: per-region dashboards and lag alarms (fast)':'always available'},
+   {id:'failover',n:'Fail over by hand',ag:'PIP',role:'ops',cast:5,cd:10,d:'Change the routing so lenders are served from Frankfurt.',dmg:{fo:100},src:()=>'always available (slow)'},
+   {id:'rekey',n:'Replicate the key',ag:'AWS',role:'sec',cast:6,cd:15,d:'Create a multi-Region replica of the fingerprint key in Frankfurt.',dmg:{key:100},src:()=>'always available (slow)'},
+   {id:'merge',n:'Hotfix: per-region counters',ag:'DEV',role:'eng',cast:6,cd:15,d:'Write one counter item per region and merge them on read.',dmg:{lww:100},src:()=>'always available (slow)'},
+   {id:'scale',n:'Raise capacity',ag:'AWS',role:'ops',cast:()=>D['3.4.cap']===0?2:4,cd:10,d:'Switch tables to on-demand and raise the concurrency limits.',dmg:{cap:100,load:80,lag:20},src:()=>D['3.4.cap']===0?'3.4: limits are already set for full load (fast)':'always available'},
+   {id:'shed',n:'Pause batch writers',ag:'OPS',role:'ops',cast:2,cd:8,d:'Stop the nightly jobs so replication can catch up.',dmg:{lag:100,cap:30,load:30},src:()=>'always available'},
+   {id:'rollback',n:'Give up on Frankfurt',ag:'PIP',role:'ops',cast:()=>[3,2,8][D['4.1.strategy']??2],cd:0,once:1,util:1,d:'A blunt fix: route everything back to eu-west-1 and wait for AWS.',src:()=>'4.1: '+(['weights (~3 s)','DNS flip (~2 s)','redeploy (~8 s)'][D['4.1.strategy']??2])},
+   {id:'notify',n:'Notify lenders',ag:'PRD',role:'po',cast:2,cd:0,once:1,util:1,d:'Post to the status page so lenders retry and route to manual review.',src:()=>'always available'},
+   {id:'escalate',n:'Page incident commander',ag:'DLV',role:'pm',cast:2,cd:0,once:1,util:1,d:'An IC coordinates the response, so all casts are 40% faster.',src:()=>'always available'},
+  ];
+  return {
+    h:'eu-west-1 brown-out',k:'AWS Health · eu-west-1',
+    p:'Thursday 14:20. eu-west-1 is degraded: error rates are up across DynamoDB and Lambda. This is the day the second region was built for.',
+    unshipped:'Thursday 14:20. eu-west-1 is degraded: error rates are up across DynamoDB and Lambda.',
+    comms:'Lenders who know can retry, and route what fails to manual review.',
+    abil,waves,
+    logs:{notify:'Status page posted: regional incident, assessments served from Frankfurt, retry on failure.',rollback:'Routing is back on eu-west-1 alone. The incident now ends when AWS says it does.'},
+    result:{won:'All three waves handled. A region went down and lenders kept getting answers.',rollback:'The incident ends when AWS fixes eu-west-1. Lenders waited with you, which is what the second region was meant to prevent.',breach:'The error budget ran out. The second region existed, and the outage happened anyway.'},
+    score:{notified:['Lenders notified','Lenders never notified'],rolled:'Second region abandoned'},
+    why(){const it=[];
+      it.push([fo?'Failover took 70 seconds':'Failover waited for a person',fo?'good':'bad',fo?'3.2 put the decision in Route 53 health checks.':no('3.2.fo')?`The ${scope().n} scope has no NFR Requirements stage, so the question was never asked.`:'3.2 chose a manual failover.']);
+      it.push([key&&ctr?'Frankfurt knew everything eu-west-1 knew':!key?'Each region had its own fingerprints':'Regions overwrote each other\'s sightings',key&&ctr?'good':'bad',key&&ctr?(S.flags.keyFix||S.flags.counterFix?'The game day in 3.6 found the mismatch in staging and sent it back before go-live.':'3.4 replicated the key and 3.3 gave each region its own counter items.'):(D['3.6.gameday']===1?'Nothing was ever tested with a region taken away (3.6).':'The design stages that settle this were not in the plan, and no game day ran.')]);
+      it.push([cap?(lag?'One region carried everything, in sync':'Replication fell 9 minutes behind'):'The surviving region throttled',cap&&lag?'good':'bad',!cap?(!drift?'A console change from an old incident was never put into code, and the deploy undid it.':'Nobody sized a single region for the whole load.'):lag?'The traceability sensor at 3.3 caught that the 1-minute limit had no design, and someone asked for one.':'Nothing bounded or watched replication lag.']);
+      return it},
+  };
+}
+
+function debrief(C2,D){
+  if(D['2.2.cdk']!==undefined)C2('2.2',D['2.2.cdk']===0,D['2.2.cdk']===0?'Affirming CDK-only, and repairing the one exception, meant the plan described what was really running.':'A hand-made change stayed outside the code, and the next deploy undid it.');
+  if(D['2.1.state']!==undefined)C2('2.1',D['2.1.state']===0,D['2.1.state']===0?'A drift check found the one place where the account and the code disagreed.':'The scan described the code and never looked at the account.');
+  C2('2.3',D['2.3.target']===0,D['2.3.target']===0?'15 minutes and 1 minute, from the contract clause, gave every later stage a number to meet.':'The resilience target was not one anybody could test against the contract.');
+  C2('2.3',D['2.3.where']===0,D['2.3.where']===0?'Frankfurt kept applicants\' data inside the EU, with no change to the agreement.':'The choice of region put the data-sharing agreement or the DPIA in question.');
+  C2('3.2',autoFo(),D['3.2.fo']===undefined?`The ${scope().n} scope has no NFR Requirements stage: nobody decided how failover happens.`:autoFo()?'Automatic failover on health checks moved traffic in about a minute.':'A manual failover used up the recovery time on a person deciding.');
+  C2('3.3',counterOk(),D['3.3.counter']===undefined?(S.flags.counterFix?`The ${scope().n} scope has no NFR Design stage. The counter clash was caught late, by the game day.`:`The ${scope().n} scope has no NFR Design stage, so two regions wrote over each other's counters.`):D['3.3.counter']===0?'One counter item per region meant no write could overwrite another.':'The counter design let regions lose each other\'s sightings.');
+  if(D['3.3.counter']!==undefined)C2('SENS',!!S.flags.lag,S.flags.lag?'The traceability sensor caught a requirement with no design behind it: the 1-minute data-loss limit.':'The 1-minute data-loss limit never got a design element.');
+  C2('3.4',keyOk(),D['3.4.key']===undefined?(S.flags.keyFix?`The ${scope().n} scope has no Infrastructure Design stage. The key mismatch was caught late, by the game day.`:`The ${scope().n} scope has no Infrastructure Design stage, so each region made its own key.`):D['3.4.key']===0?'A multi-Region key gave one identity one fingerprint everywhere.':'The key design split or chained the two regions.');
+  if(D['3.5.replace']!==undefined)C2('3.5',D['3.5.replace']!==2,D['3.5.replace']===2?'The table was replaced, and 14 days of counters went with it.':'The agent stopped at "replace" in the diff, and the data stayed where it was.');
+  if(D['3.6.gameday']!==undefined)C2('3.6',D['3.6.gameday']===0,D['3.6.gameday']===0?'A game day tested the only thing that mattered: taking a region away.':'The second region was deployed and never once failed over to.');
+  if(D['4.2.order']!==undefined)C2('4.2',D['4.2.order']===0,D['4.2.order']===0?'Frankfurt took no traffic until its counters matched.':'Frankfurt answered its first requests from half-empty counters.');
+}
+
+return {
+ id:'infra',n:'The Second Region',kind:'infrastructure',col:'#FFB547',
+ tag:'Make /assess survive the loss of an AWS region before the contract says it must.',
+ d:'Lender contracts renew in eight weeks with a new clause: /assess must survive a regional outage, back within 15 minutes and missing at most a minute of data. Today everything runs in eu-west-1. Maya has to add a second region underneath a live fraud signal.',
+ ask:ASK,intent:'second-region',REC,KB,
+ boot:{repo:'aegle-api',ws:'brownfield · AWS CDK v2 · 3 stacks · 1 region (eu-west-1)',note:'Lender contracts renew in 8 weeks with a regional-resilience clause (9.3).'},
+ scopes:['infra','express'],best:'infra',
+ fit:{
+  infra:{v:'best',t:'Made for this: practices, requirements, both NFR stages and Infrastructure Design, then build, CI, provisioning, deployment and observability.'},
+  express:{v:'poor',t:'Requirements straight to code and deploy. No stage decides how two regions share a key, a counter or the load.'},
+ },
+ composer:{E:[.31,.36,.71,.79,.58],why:'Risk is HIGH (0.79 ≥ 0.70) and verification is hard (0.71): the failure this protects against cannot be shown by unit tests. Infra runs both NFR stages and Infrastructure Design, then CI, provisioning and observability. Express would go from requirements to code with none of them.'},
+ DEC,stages,units,
+ midBuild:{unit:'aegle',dec:'3.5.replace'},
+ loopBack(){
+  if(dv('3.6.gameday')!==0)return null;
+  const k=!keyOk(),c=!counterOk();if(!k&&!c)return null;
+  if(k)S.flags.keyFix=true;if(c)S.flags.counterFix=true;
+  return {why:'Game day failure: a seeded ring split across the two regions never fires in Frankfurt. '+[k?'Each region computes a different fingerprint for the same person':null,c?'sightings written in one region are overwritten by the other':null].filter(Boolean).join(', and ')+'.',
+          fixed:'Second run: green. '+[k?'Both regions use a replica of one key':null,c?'each region writes its own counter item':null].filter(Boolean).join(', and ')+'.'}},
+ deploy:{what:'the two-region setup',all:'No blast-radius control: every lender moved onto untried routing at once.'},
+ addStage:{at:'2.3',add:'3.3',ask:'NFR Design is not in this scope, but two regions are about to write to the same counters. Add it?',sub:'Nobody has designed how two regions write the same counters.'},
+ phaseChecks:from=>from===3?[['Replacements and policy failures block a merge in CI',S.dec['3.7.gates']!==1],['Every NFR maps to a design element',!!S.flags.lag]]:[],
+ traceGap:()=>S.ran.has('3.3')&&!S.flags.lag,
+ humanSensor:'3.3',
+ badge:{ic:'🌍',n:'Two Regions, One Truth',d:'One key in both regions, counters that cannot overwrite each other, and a game day to prove it.',test:()=>S.dec['3.4.key']===0&&S.dec['3.3.counter']===0&&S.dec['3.6.gameday']===0},
+ incident,debrief,
+};
+})();
+
+/* Scenario: the reasons pipeline. A refactor of the code every /assess response passes through.
+   Written for the stages that refactor, bugfix and express run. Everything here is story. */
+SCENARIOS.refactor=(()=>{
+const REC='aidlc/spaces/identity/intents/261216-reasons-pipeline/';
+const KB='aidlc/spaces/identity/codekb/aegle-api/';
+const ASK='Refactor reason merging in /assess into a signal pipeline, with no change in behaviour';
+const golden=()=>dv('2.1.golden')!==1;                                   // a real record of current behaviour exists
+const orderKept=()=>dv('2.3.same')===0||!!S.flags.order;                  // reason order is a requirement
+const truncKept=()=>dv('3.1.quirk')===0||!!S.flags.truncFix;              // the three-reason limit survives
+const parallel=()=>dv('3.5.exec')!==1||!!S.flags.parFix;                  // signals still run side by side
+
+const DEC={
+ '2.1.golden':{own:'eng',by:'DEV',q:'Test coverage on the merge code is 71%, and finding CQ-03 says merging more than three reasons is untested. What do I take as the record of what this code does today?',ctx:'A refactor is only as safe as its record of current behaviour.',o:[
+  {t:'Capture 10,000 real request and response pairs from production as a golden set, with personal data masked',s:10,q:5,fb:'Now "no behaviour change" is something you can run.'},
+  {t:'The existing test suite is the record',s:2,r:10,fb:'The suite covers 71% of the merge code and none of the cases CQ-03 names. Whatever it misses is free to change.'},
+  {t:'Capture real pairs unmasked. Masking takes a day.',s:0,r:20,fb:'Ten thousand applicants\' names and dates of birth now sit in a test fixture in the repository.'}]},
+ '2.3.same':{own:'po',by:'PRD',q:'What does "no behaviour change" mean to a lender?',ctx:'Forty lenders parse this response. The requirement is the only place their view gets written down.',o:[
+  {t:'Byte-identical responses for the recorded traffic: the same reasons, in the same order, with the same wording',s:10,q:5,r:-5,fb:'Strict, and checkable. Whatever lenders rely on today, they still get.'},
+  {t:'The same reasons, in any order',s:3,r:10,fb:'Reasonable on paper. Nobody has checked whether a lender reads only the first reason.'},
+  {t:'The tests pass',s:0,r:10,fb:'The tests are what finding CQ-03 says you cannot trust here.'}]},
+ '2.3.freeze':{own:'pm',by:'PRD',q:'ID-VEL-03 is due to start in this same code next week. What happens to it while the refactor is open?',ctx:'Two changes to one 640-line function.',o:[
+  {t:'Hold new signals until the pipeline lands. ID-VEL-03 starts on the new structure.',s:10,fb:'One change at a time in the code everything passes through.'},
+  {t:'Build both at once and merge at the end',s:2,r:10,fb:'Two sets of agents rewriting one function. The merge becomes a second refactor.'}]},
+ '3.1.quirk':{own:'eng',by:'ARC',q:'Writing down current behaviour turned up a quirk: when more than three reasons apply, the code silently drops everything after the third. Lenders have received at most three for two years. What does the refactor do with it?',ctx:'Functional Design records what the code does today, quirks included. The bugfix scope skips this stage.',o:[
+  {t:'Keep it exactly, write it down as rule R-4, and open a separate intent to change it',s:10,q:5,fb:'The refactor stays a refactor, and the quirk becomes a decision somebody can make on purpose.'},
+  {t:'Fix it now: return every reason that applies',s:2,r:15,fb:'Sensible, and a behaviour change. Lenders that sized a field for three reasons find out in production.'},
+  {t:'Leave it to the Developer agent',s:0,r:10,fb:'An agent building a clean merge has no reason to rebuild a limit it was never told about.'}]},
+ '3.5.exec':{own:'eng',by:'DEV',q:'The simplest pipeline runs the signals one after another. Today\'s code runs them side by side. Which do I build?',ctx:'A question raised mid-build. How fast the response arrives is behaviour too.',o:[
+  {t:'Side by side, as today, with timings compared against the recorded traffic',s:10,fb:'p99 stays the slowest signal, not the sum of all of them.'},
+  {t:'One after another. It is easier to read and to debug.',s:2,r:10,fb:'p99 becomes the sum of the signals: about 141 ms turns into about 260 ms.'}]},
+ '3.6.compare':{own:'eng',by:'QA',q:'How do we show that nothing changed?',ctx:'Build and Test is the evidence. For a refactor, the evidence is a comparison.',o:[
+  {t:'Run the old and new code side by side on recorded traffic, and diff every response and every timing',s:10,q:5,fb:'Differences show up here, as a failed build, and not at a lender.'},
+  {t:'The unit tests pass on the new code',s:2,r:10,fb:'They were written for the old structure and cover 71% of it.'}]},
+ '4.1.strategy':{own:'ops',by:'PIP',q:'How does the new pipeline reach all 40 lenders?',ctx:'This decides whether the old code path is still there when you need it.',o:[
+  {t:'Canary 5% → 25% → 100%, keeping the old path deployable per lender',s:10,fb:'If one lender\'s parser objects, that lender goes back to the old path while the rest carry on.'},
+  {t:'Blue/green switch',s:6,fb:'Fast to flip back, but for everyone at once.'},
+  {t:'All at once. Nothing is supposed to change.',s:0,r:10,fb:'"Nothing is supposed to change" is the claim under test.'}]},
+ '4.3.window':{own:'pm',by:'PIP',q:'The refactor is ready. Lenders start their month-end reconciliation runs in six days. When does it go out?',ctx:'Deployment Execution.',o:[
+  {t:'Tuesday 10:00, well clear of month end, with the whole team online',s:10,fb:'A week of ordinary traffic on the new pipeline before the heaviest day.'},
+  {t:'Friday 17:00, to free next week for ID-VEL-03',s:0,r:10,fb:'The first full week on the new code is month end.'}]},
+ '4.4.alarm':{own:'ops',by:'OPS',q:'What would tell us that a lender is seeing something different?',ctx:'Observability Setup. A changed reason order is still a 200 OK in 140 ms.',o:[
+  {t:'Replay a sample of the recorded traffic against production every day, and alarm on any mismatch',s:10,q:5,fb:'It watches the thing the refactor promised: the same answers.'},
+  {t:'The latency and error alarms we already have',s:2,r:5,fb:'Neither one moves when the wrong reason comes first.'}]},
+};
+
+const units=()=>[{id:'aegle-api',kind:'service',st:'(no Units in this scope)',plan:'extract a signal pipeline from the reason-merging code',files:22,tests:118}];
+
+const stages={
+...initStages(REC,{ask:ASK,intent:'reasons-pipeline',ws:'brownfield · TypeScript 5 · Node 20 · AWS CDK · repo <code>aegle-api</code> (codekb found)'}),
+
+'2.1':{
+ why:'In a refactor the code is the specification. The scan has to capture what it does, not what anyone remembers it doing.',
+ dec:['2.1.golden'],
+ files:[
+  {p:KB+'code-quality-assessment.md',b:()=>T(['ID','Finding','Where'],[['<b class="wa">CQ-10</b>','<b>one 640-line function assembles every reason; each new signal is wired in by hand</b>','src/reasons.ts:1–640'],['CQ-03','merging more than three reasons is untested','src/reasons.ts:40'],['<b class="wa">CQ-11</b>','<b>integration notes for three lenders say their systems read only <code>reasons[0]</code></b>','docs/lender-integrations/'],['CQ-01','test coverage on src/reasons.ts: 71%','src/']])+P('Record of current behaviour: '+pk('2.1.golden',['golden set of 10,000 masked request and response pairs, sampled across all 40 lenders','<span class="wa">the existing test suite only</span>','<span class="no">golden set of 10,000 pairs, unmasked: real names and dates of birth</span>']))},
+  {p:KB+'code-structure.md',b:()=>PRE('src/\n  handler.ts          → calls mergeReasons()\n  reasons.ts         640 lines: vel01, device, vel02, vel00 fallback, ordering, truncation\n  rules/vel01.ts\n  rules/vel02.ts'+(golden()?'\nfixtures/golden/     10,000 pairs'+(dv('2.1.golden')===2?'   <span class="no">← unmasked</span>':''):''))},
+  {p:KB+'reverse-engineering-timestamp.md',opt:1,b:()=>P('Diff scan at 2026-12-16T10:12Z: src/reasons.ts, src/rules/ and docs/lender-integrations/.')}],
+ pre:[['DEV','Scanning <code>src/reasons.ts</code> and everything that depends on what it returns.'],['DEV','It is one function, 640 lines. And three lenders document that they read only the first reason. Flagging both.']],
+ post:[['DEV','Findings written to the space-level codekb.']],
+ finds:()=>dv('2.1.golden')===1?[{by:'DEV',t:'There is no record of what the merge code returns today beyond a suite that covers 71% of it.',src:'code-quality-assessment.md:L5',fix:'2.1.golden',ch:'Capture a masked golden set from production'}]:dv('2.1.golden')===2?[{by:'DEV',t:'The golden set holds 10,000 real names and dates of birth in the repository.',src:'fixtures/golden/',fix:'2.1.golden',ch:'Mask the golden set'}]:[]},
+
+'2.3':{
+ dec:['2.3.same','2.3.freeze'],
+ files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Goal')+P('A new signal becomes a plug-in with its own tests, not an edit to a 640-line function '+SRC('CQ-10')+'.')+H('Functional')+L(['FR-1: no behaviour change, defined as: '+pk('2.3.same',['byte-identical responses for the recorded traffic','<span class="wa">the same reasons, in any order</span>','<span class="no">the tests pass</span>']),orderKept()&&dv('2.3.same')!==0?'<b>FR-2: reasons are returned in today\'s order</b> '+SRC('CQ-11'):null,'FR-3: adding a signal touches one new file and one registry line'])+H('Constraints')+L(['New signals: '+pk('2.3.freeze',['held until the pipeline lands','<span class="wa">ID-VEL-03 is built in the old code at the same time</span>'])])},
+        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "FR-1": ["CQ-03", "CQ-10"]'+(orderKept()?', "FR-2": ["CQ-11"]':'')+', "FR-3": ["CQ-10"] }')}],
+ pre:[['PRD','A refactor has one requirement that matters: nothing changes for the people on the other side. The work is in saying what "nothing" means.']],
+ post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the code scan…']],
+ sfail:()=>orderKept()?null:{s:'upstream-coverage',t:'requirements.md never references finding CQ-11 from the code scan: three lenders read only reasons[0].',src:'requirements.md → code-quality-assessment.md:CQ-11',key:'order',ch:'Make reason order a requirement (CQ-11)',fixmsg:'FR-2 added: reasons are returned in today\'s order. Sensor re-run: pass.'},
+ after:()=>{if(dv('2.3.freeze')===1)tick(6)},
+ finds:()=>{const f=[];
+  if(dv('2.3.same')===2)f.push({by:'PLR',t:'"The tests pass" cannot be the definition: CQ-03 and CQ-01 say the tests do not cover this code.',src:'requirements.md:FR-1',fix:'2.3.same',ch:'Define no change as byte-identical responses'});
+  if(dv('2.3.freeze')===1)f.push({by:'PLR',t:'ID-VEL-03 and the refactor will both rewrite src/reasons.ts in the same fortnight.',src:'requirements.md:L6',fix:'2.3.freeze',ch:'Hold new signals until the pipeline lands'});
+  return f}},
+
+'3.1':{
+ dec:['3.1.quirk'],
+ files:[{p:REC+'construction/functional-design/rules.md',b:()=>L(['R-1: every signal is evaluated for every assessment','R-2: reasons are ordered by severity, then by signal registration order'+(orderKept()?'':' <span class="wa">(not a requirement)</span>'),'R-3: ID-VEL-00 replaces ID-VEL-02 when the network check is unavailable','R-4: more than three reasons: '+pk('3.1.quirk',['<b>only the first three are returned</b> (existing behaviour, kept; change tracked as its own intent)','<span class="wa">all are returned (behaviour change)</span>','<span class="no">not specified</span>'])])},
+        {p:REC+'construction/functional-design/functional-spec.md',b:()=>PRE('assess(app):\n  results = '+(parallel()?'await all(signals.map(s => s.evaluate(app)))':'for s in signals: await s.evaluate(app)   # sequential')+'\n  reasons = order(results)'+(dv('3.1.quirk')===0?'\n  return reasons[0:3]                # R-4':'\n  return reasons'))},
+        {p:REC+'construction/functional-design/entities.md',opt:1,b:()=>L(['Signal { code, evaluate(app) → Reason | null }','Registry: ordered list of Signals','Reason { code, severity, detail }'])}],
+ pre:[['ARC','Functional design for the pipeline. First I write down what the current code does, line by line, so the new code has something to match.'],['ARC','There is behaviour in here that no document mentions.']],
+ post:[['ARC','Rules and spec written.'],['ARV','Reviewing the functional design against the current code…']],
+ finds:()=>dv('3.1.quirk')===1?[{by:'ARV',t:'Returning more than three reasons changes what every lender receives. FR-1 says no behaviour change.',src:'rules.md:R-4',fix:'3.1.quirk',ch:'Keep the three-reason limit; change it separately'}]:dv('3.1.quirk')===2?[{by:'ARV',t:'The three-reason limit is current behaviour and the spec is silent on it. Code generated from this spec will not have it.',src:'rules.md:R-4',fix:'3.1.quirk',ch:'Keep the three-reason limit; change it separately'}]:[]},
+
+'3.5':{
+ files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>src/pipeline/registry.ts</code>: ordered list of signals','<code>src/pipeline/signals/*.ts</code>: vel01, device, vel02 (with the ID-VEL-00 fallback), one file each','<code>src/pipeline/merge.ts</code>: ordering: '+(orderKept()?'today\'s order, pinned by test':'<span class="wa">by severity only</span>')+'; three-reason limit: '+pkd('3.1.quirk',['kept (R-4)','<span class="wa">removed</span>','<span class="no">not specified</span>'],S.flags.truncFix?'kept, after Build and Test found it':'not written down: Functional Design is not in this scope'),'Evaluation: '+pk('3.5.exec',['signals run side by side','<span class="wa">signals run one after another</span>'],0),'<code>src/reasons.ts</code>: deleted once the comparison is clean'])},
+        {p:REC+'construction/code-generation/code-summary.md',b:()=>T(['Change','Files','Tests'],[['pipeline and registry',6,34],['three signals, one file each',9,61],['merge and ordering',4,23],['old reasons.ts removed',3,0]])+P('Evaluation: '+(parallel()?'side by side':'<span class="wa">one after another</span>')+'.')},
+        {p:REC+'construction/code-generation/unit-test-instructions.md',opt:1,b:()=>PRE('npm test -- --coverage'+(golden()?'\nnpm run compare -- fixtures/golden/   # old vs new, responses and timings':''))}],
+ pre:[['DEV','Drafting the code plan. No code is written until the plan is approved.']],
+ post:[['DEV','Pipeline generated. Writing <code>code-summary.md</code>.'],['ARV','Reviewing the diff against the functional design…']],
+ sfail:()=>({s:'traceability',t:'FR-3 has no test mapped to it in traceability.json.',src:'traceability.json: FR-3',auto:'DEV',fixmsg:'FR-3 mapped to registry.add-signal.test.ts. Sensor re-run: pass.'}),
+ finds:()=>dv('3.5.exec')===1&&!S.flags.parFix?[{by:'ARV',t:'Sequential evaluation makes p99 the sum of the signals. The current code runs them in parallel.',src:'src/pipeline/registry.ts:22',fix:'3.5.exec',ch:'Run the signals side by side'}]:[]},
+
+'3.6':{
+ dec:['3.6.compare'],
+ files:[{p:REC+'construction/build-and-test/test-results.md',b:()=>T(['Suite','Result'],[['unit','<span class="ok">531 passed</span>'],['integration','<span class="ok">44 passed</span>'],['old vs new: responses',pk('3.6.compare',[golden()?(truncKept()?'<span class="ok">10,000 of 10,000 '+(orderKept()?'identical':'equal, ignoring order')+'</span>':'<span class="no">212 differ</span>'):'<span class="wa">500 staging pairs equal; no production record to compare</span>','<span class="wa">not run</span>'])],['old vs new: p99',pk('3.6.compare',[parallel()?'<span class="ok">141 ms → 142 ms</span>':'<span class="no">141 ms → 262 ms</span>','<span class="wa">not measured</span>'])]])},
+        {p:REC+'construction/build-and-test/build-instructions.md',opt:1,b:()=>PRE('npm ci && npm run build && npm test'+(dv('3.6.compare')===0?' && npm run compare':''))}],
+ pre:[['QA','Building, then running the unit and integration suites.'],['QA','One question first: for a refactor, what is the test?']],
+ post:[['QA','Writing <code>test-results.md</code>.']],
+ finds:()=>dv('3.6.compare')===1?[{by:'QA',t:'Nothing compares the new pipeline with the old code. The suite that passed covers 71% of what was replaced.',src:'test-results.md:L3',fix:'3.6.compare',ch:'Compare old and new on recorded traffic'}]:[]},
+
+'4.1':{
+ dec:['4.1.strategy'],
+ files:[{p:REC+'operation/deployment-pipeline/deployment-strategy.md',b:()=>P(pk('4.1.strategy',['<b>Canary</b> 5% → 25% → 100%, with the old path kept deployable per lender for 30 days','<b>Blue/green</b> switch with instant flip-back','<b>All at once</b>; src/reasons.ts is deleted in the same release']))},
+        {p:REC+'operation/deployment-pipeline/rollback-runbook.md',b:()=>L(['Trigger: any lender reports a parsing difference, or p99 leaves the SLO','Action: '+pk('4.1.strategy',['route that lender to the old path (~1 min); full rollback ~2 min','flip to blue (~1 min), for all lenders','<span class="wa">redeploy the previous release (~8 min)</span>'])])},
+        {p:REC+'operation/deployment-pipeline/cd-config.md',opt:1,b:()=>PRE('pipeline: aegle-api-cd\nstages: staging → prod')}],
+ pre:[['PIP','Planning how the new pipeline reaches production, and how long the old path stays available.']],
+ post:[['PIP','Writing the deployment strategy and rollback runbook.']],
+ finds:()=>dv('4.1.strategy')===2?[{by:'PIP',t:'All-at-once deletes the old path in the same release. If one lender\'s parser breaks, the only way back is a full redeploy.',src:'deployment-strategy.md:L1',fix:'4.1.strategy',ch:'Use a canary and keep the old path'}]:[]},
+
+'4.3':{
+ dec:['4.3.window'],
+ files:[{p:REC+'operation/deployment-execution/deployment-log.md',b:()=>PRE(pk('4.1.strategy',['09:58 canary 5%  ✓ responses match\n10:08 canary 25% ✓ responses match\n10:18 100%       ✓','10:00 green up ✓\n10:05 flip ✓','10:00 deploy 100% ✓']))},
+        {p:REC+'operation/deployment-execution/smoke-test-results.md',b:()=>L(['/assess returns the same reasons for 200 sampled requests ✓',orderKept()?'reasons[0] unchanged for all 200 ✓':'<span class="wa">reasons[0] differs for 31 of 200 (order is not a requirement)</span>',parallel()?'p99 142 ms ✓':'<span class="no">p99 262 ms ✗</span>'])}],
+ pre:[['PIP','Ready to deploy the pipeline to prod. The deploy window is a human call.']],
+ post:[['PIP','Writing the deployment log and smoke test results.']],
+ finds:()=>dv('4.3.window')===1?[{by:'PIP',t:'A Friday 17:00 deploy puts the first full week of the new pipeline on month end.',src:'deployment-log.md:L1',fix:'4.3.window',ch:'Move to Tuesday 10:00'}]:[]},
+
+'4.4':{
+ dec:['4.4.alarm'],
+ files:[{p:REC+'operation/observability-setup/alarms.md',b:()=>L(pk('4.4.alarm',[['<b>daily replay of 500 recorded requests against production: any mismatch → page</b>','existing latency and error burn-rate alarms (unchanged)'],['existing latency and error burn-rate alarms (unchanged)']]))},
+        {p:REC+'operation/observability-setup/slo-config.md',b:()=>PRE('slo: assess-availability  target: 99.9%  window: 30d   # unchanged\nslo: assess-latency       p99 < 300ms                # unchanged')},
+        {p:REC+'operation/observability-setup/dashboards.md',opt:1,b:()=>L(['Reasons: count per code, reasons per response, first reason by lender'])}],
+ pre:[['OPS','A refactor that goes wrong does not throw errors. I am looking for something that watches the answers.']],
+ post:[['OPS','Writing alarms and dashboards.']],
+ finds:()=>dv('4.4.alarm')===1?[{by:'OPS',t:'No alarm can tell that a lender is receiving a different answer.',src:'alarms.md:L1',fix:'4.4.alarm',ch:'Replay recorded traffic daily and alarm on mismatch'}]:[]},
+};
+
+/* ---------- the incident: month end, when forty parsers meet the new pipeline ---------- */
+function incident(D){
+  const ord=orderKept(),trunc=truncKept(),par=parallel(),noFD=D['3.1.quirk']===undefined;
+  const waves=[
+    {id:'order',n:'The first reason changed',sev:85,chart:'err',sym:'Three lenders report a wave of declines. Their systems read only <code>reasons[0]</code>, and a different reason now comes first.',
+     rc:D['2.3.same']===1?'2.3 allowed "the same reasons, in any order". Three lenders read only the first one.':'2.3 defined no change as "the tests pass", and no test checks the order.',
+     auto:ord,autoLog:'Reasons come out in the old order, because the requirements say they must. No parser notices a thing.'},
+    {id:'trunc',n:'More than three reasons',sev:80,chart:'err',sym:'Two lenders\' batch jobs are failing on responses that carry four and five reasons.',
+     rc:D['3.1.quirk']===1?'3.1 fixed the three-reason limit inside the refactor. That was a behaviour change.':D['3.1.quirk']===2?'3.1 left the limit to the Developer agent, which built a clean merge without it.':`Functional Design is not in the ${scope().n} scope, so nobody wrote the three-reason limit down, and the new merge does not have it.`,
+     auto:trunc,autoLog:S.flags.truncFix?'The side-by-side comparison in 3.6 caught the missing three-reason limit before it shipped.':'Rule R-4 kept the three-reason limit. Nothing downstream overflows.'},
+    par?{id:'load',n:'Month-end batch load',sev:40,chart:'rps',sym:'Reconciliation batches have tripled the request rate. Latency is flat.',rc:'Pure load. The signals still run side by side, so p99 is the slowest signal, not the sum.'}
+       :{id:'slow',n:'Latency regression',sev:85,chart:'p99',sym:'p99 is at <b>262 ms</b> and climbing with the batch load.',rc:'3.5 runs the signals one after another, so p99 is the sum of all of them.'},
+  ];
+  const abil=[
+   {id:'investigate',n:'Investigate',ag:'OPS',role:'ops',cast:()=>D['4.4.alarm']===0?1:2,cd:0,util:1,d:'Compare live responses with the recorded ones to find the cause.',src:()=>D['4.4.alarm']===0?'4.4: a daily replay already diffs production (fast)':'always available'},
+   {id:'pin',n:'Hotfix: restore the old order',ag:'DEV',role:'eng',cast:5,cd:12,d:'Put the reasons back in the order lenders are used to.',dmg:{order:100},src:()=>'always available (slow)'},
+   {id:'cap',n:'Hotfix: restore the limit',ag:'DEV',role:'eng',cast:4,cd:12,d:'Return at most three reasons again.',dmg:{trunc:100},src:()=>'always available (slow)'},
+   {id:'par',n:'Hotfix: run signals in parallel',ag:'DEV',role:'eng',cast:6,cd:15,d:'Evaluate the signals side by side, as the old code did.',dmg:{slow:100},src:()=>'always available (slow)'},
+   {id:'scale',n:'Scale out',ag:'AWS',role:'ops',cast:4,cd:10,d:'Raise capacity and concurrency.',dmg:{load:70,slow:25},src:()=>'always available'},
+   {id:'oldpath',n:'Route a lender to the old path',ag:'PIP',role:'ops',cast:1.5,cd:6,util:1,d:'Send the affected lenders through the old code while the fix is made.',dmg:{order:40,trunc:40,slow:30},req:()=>D['4.1.strategy']===0,src:()=>D['4.1.strategy']===0?'4.1: the old path is still deployable per lender':'needs a canary that keeps the old path (4.1)'},
+   {id:'rollback',n:'Roll back',ag:'PIP',role:'ops',cast:()=>[3,2,8][D['4.1.strategy']??2],cd:0,once:1,util:1,d:'A blunt fix: ends the incident, and the 640-line function is back.',src:()=>'4.1: '+(['canary (~3 s)','blue/green (~2 s)','all-at-once (~8 s)'][D['4.1.strategy']??2])},
+   {id:'notify',n:'Notify lenders',ag:'PRD',role:'po',cast:2,cd:0,once:1,util:1,d:'Tell lenders what changed in the response and what to do meanwhile.',src:()=>'always available'},
+   {id:'escalate',n:'Page incident commander',ag:'DLV',role:'pm',cast:2,cd:0,once:1,util:1,d:'An IC coordinates the response, so all casts are 40% faster.',src:()=>'always available'},
+  ];
+  return {
+    h:'Month-end reconciliation',
+    p:'Month end. Forty lenders run their reconciliation batches through /assess, and their parsers meet the new pipeline at full volume. Alarms are firing.',
+    unshipped:'Month end. Forty lenders run their reconciliation batches through /assess. Alarms are firing.',
+    comms:'Lenders who know what changed can hold their batches for an hour.',
+    abil,waves,rps:4200,
+    logs:{notify:'Lenders told what differs in the response, and asked to hold batch runs until it is put right.',rollback:'Rolled back. The old function is serving every lender again, and the refactor starts over.'},
+    result:{won:'All three waves handled. Lenders got the answers they have always got, from code that is now easy to extend.',rollback:'The incident is over, but the pipeline is out and the 640-line function is back.',breach:'The error budget ran out. A change that was meant to be invisible was the most visible thing at month end.'},
+    score:{notified:['Lenders notified','Lenders never notified'],rolled:'Refactor rolled back'},
+    why(){const it=[];
+      it.push([ord?'Reason order never moved':'Reason order changed under three lenders',ord?'good':'bad',D['2.3.same']===0?'2.3 defined no change as byte-identical responses.':ord?'The upstream-coverage sensor at 2.3 caught that CQ-11 was missing, and order became a requirement.':scope().sensors?'The sensor flagged CQ-11 at 2.3, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing tied the requirements to CQ-11.`]);
+      it.push([trunc?'The three-reason limit survived':'The three-reason limit was lost',trunc?'good':'bad',D['3.1.quirk']===0?'3.1 wrote the quirk down as rule R-4 and kept it.':S.flags.truncFix?'Nobody had written it down, but the side-by-side comparison in 3.6 caught it.':noFD?`No Functional Design in the ${scope().n} scope, and nothing compared old with new on real traffic.`:'3.1 changed or ignored the limit.']);
+      it.push([par?'Latency stayed flat under batch load':'p99 became the sum of the signals',par?'good':'bad',D['3.5.exec']===1?(S.flags.parFix?'3.5 built it sequentially, and the timing comparison in 3.6 sent it back.':'3.5 chose sequential evaluation, and nothing measured it.'):'3.5 kept the signals running side by side.']);
+      return it},
+  };
+}
+
+function debrief(C2,D){
+  C2('2.1',D['2.1.golden']===0,D['2.1.golden']===0?'A masked golden set from production made "no behaviour change" testable.':D['2.1.golden']===1?'The refactor had no record of current behaviour beyond a 71% test suite.':'The golden set put 10,000 applicants\' personal data into the repository.');
+  C2('2.3',D['2.3.same']===0,D['2.3.same']===0?'Byte-identical responses was a definition lenders could rely on.':'The definition of "no change" left room for a change lenders could see.');
+  if(D['2.3.same']!==0)C2('SENS',!!S.flags.order,S.flags.order?'The upstream-coverage sensor tied the requirements back to CQ-11, and reason order was pinned.':'CQ-11 (three lenders read only the first reason) never reached the requirements.');
+  C2('2.3',D['2.3.freeze']===0,D['2.3.freeze']===0?'New signals waited for the pipeline, so one change at a time went through the code.':'ID-VEL-03 and the refactor rewrote the same function at once, and the merge cost most of a day.');
+  C2('3.1',truncKept(),D['3.1.quirk']===undefined?(S.flags.truncFix?`The ${scope().n} scope has no Functional Design. The three-reason quirk was caught late, by the comparison in Build and Test.`:`The ${scope().n} scope has no Functional Design, so behaviour that lived only in the code was lost in the rewrite.`):D['3.1.quirk']===0?'Functional Design wrote the three-reason quirk down and kept it.':'The three-reason quirk was changed inside a refactor.');
+  if(D['3.5.exec']!==undefined)C2('3.5',D['3.5.exec']===0,D['3.5.exec']===0?'Signals still run side by side, so the refactor cost no latency.':'Sequential evaluation nearly doubled p99.');
+  if(D['3.6.compare']!==undefined)C2('3.6',D['3.6.compare']===0,D['3.6.compare']===0?'Running old and new side by side turned differences into failed builds.':'The new code was judged by tests written for the old structure.');
+  if(D['4.4.alarm']!==undefined)C2('4.4',D['4.4.alarm']===0,D['4.4.alarm']===0?'A daily replay watches the answers, which is what the refactor promised to keep.':'Nothing in production can tell that an answer has changed.');
+}
+
+return {
+ id:'refactor',n:'The Reasons Pipeline',kind:'refactor',col:'#2EE6C5',
+ tag:'Pull the tangled reason-merging code apart without changing a single response.',
+ d:'Every signal the team has shipped is wired by hand into one 640-line function, and three more signals are planned. Sam wants a pipeline where a signal is a plug-in. Forty lenders parse the output today, so nothing they receive may change.',
+ ask:ASK,intent:'reasons-pipeline',REC,KB,
+ boot:{repo:'aegle-api',ws:'brownfield · TypeScript + Python · 17,480 LOC · codekb found',note:'src/reasons.ts is 640 lines and every /assess response passes through it.'},
+ scopes:['refactor','bugfix','express'],best:'refactor',
+ fit:{
+  refactor:{v:'best',t:'The bugfix path plus Functional Design, so current behaviour is written down, quirks included, before any code moves.'},
+  bugfix:{v:'poor',t:'No Functional Design. The code is rebuilt from the requirements alone, and behaviour that nobody wrote down is free to change.'},
+  express:{v:'poor',t:'No reviewers, no sensors and no plan approval, for a rewrite of the code every lender\'s response passes through.'},
+ },
+ composer:{E:[.20,.72,.66,.48,.52],why:'Codebase structural uncertainty is HIGH (0.72 ≥ 0.70): a 640-line function with untested paths, and behaviour that lives in the code and in no document. Refactor is the bugfix path plus Functional Design, where that behaviour gets written down before anything moves. Bugfix would rebuild from the requirements alone.'},
+ DEC,stages,units,
+ midBuild:{unit:'aegle',dec:'3.5.exec'},
+ loopBack(){
+  if(dv('3.6.compare')!==0)return null;
+  const t=golden()&&!truncKept(),p=!parallel();
+  if(!t&&!p)return null;
+  if(t)S.flags.truncFix=true;if(p)S.flags.parFix=true;
+  return {why:'Comparison failure: '+[t?'212 recorded responses differ. The old code returned three reasons where the new code returns four or five':null,p?'p99 went from 141 ms to 262 ms, because the signals now run one after another':null].filter(Boolean).join('; and ')+'.',
+          fixed:'Second run: green. '+[t?'The merge keeps the three-reason limit':null,p?'the signals run side by side again':null].filter(Boolean).join(', and ')+'.'}},
+ deploy:{what:'the new pipeline',all:'No blast-radius control: every lender moved to the new pipeline in the same second, and the old path is gone.'},
+ addStage:{at:'2.3',add:'3.1',ask:'Functional Design is not in this scope, but this change rewrites the code that assembles every response. Add it?',sub:'Nobody has written down what the current code does, quirks included.'},
+ traceGap:()=>S.ran.has('2.3')&&!orderKept(),
+ humanSensor:'2.3',
+ badge:{ic:'🧬',n:'Same Bytes Out',d:'Capture a masked golden set, define no change as byte-identical, and prove it side by side.',test:()=>S.dec['2.1.golden']===0&&S.dec['2.3.same']===0&&S.dec['3.6.compare']===0},
+ incident,debrief,
+};
+})();
+
+/* Scenario: advisory AEG-SEC-014. A leaked CI credential could use the key that turns identities into fingerprints.
+   Written for the stages that security-patch, bugfix and express run. Everything here is story. */
+SCENARIOS.secpatch=(()=>{
+const REC='aidlc/spaces/identity/intents/261209-sec-014-fingerprint-key/';
+const KB='aidlc/spaces/identity/codekb/aegle-api/';
+const ASK='Patch advisory AEG-SEC-014: revoke the leaked CI credential, restrict the fingerprint key and rotate it';
+const blindScan=()=>dv('2.1.callers')===1;
+/* How the key ends up being rotated: 'dual' (both keys readable for 14 days), 'hard' (switch and forget) or 'none'. */
+const rotation=()=>dv('2.3.done')!==0||dv('3.2.rotate')===2?'none':dv('3.2.rotate')===0?'dual':'hard';
+const grantClosed=()=>dv('2.3.done')!==2&&(dv('3.5.grant')!==2||!!S.flags.grantFix);
+
+const DEC={
+ '2.1.callers':{own:'sec',by:'DEV',q:'The repository shows three places that call the fingerprint key. Is the code enough to know who uses it?',ctx:'Reverse Engineering scans the repository. A key can also be used by things that are in no repository.',o:[
+  {t:'No: compare the code scan with 90 days of CloudTrail for the key',s:10,q:5,fb:'CloudTrail shows a fourth caller that is in no repository: the fraud-ops ring notebook, running under a shared analyst role.'},
+  {t:'Yes. The repository is the source of truth.',s:2,r:10,fb:'Three call sites found. Anything that uses the key from outside the repository is not in the scan.'}]},
+ '2.3.done':{own:'sec',by:'PRD',q:'What does "patched" mean for AEG-SEC-014?',ctx:'The leaked credential was revoked 40 minutes ago. The requirements say what else has to be true.',o:[
+  {t:'Credential revoked, the key usable only by named roles, the key rotated, and evidence of every use during the exposure',s:10,q:5,r:-10,fb:'Each part closes something different: the door, the lock, what was already taken, and what you can prove.'},
+  {t:'Credential revoked and the key policy tightened. Rotation can wait for the yearly schedule.',s:3,r:10,fb:'Whoever held the credential may have kept what the key produced. Until the key rotates, every fingerprint they computed stays valid.'},
+  {t:'Credential revoked. That closes the hole.',s:0,r:20,fb:'It closes one door. The wildcard grant that let a CI role use the key is still there for the next leaked credential.'}]},
+ '2.3.tell':{own:'po',by:'PRD',q:'The data-sharing agreement gives lenders 72 hours\' notice of a security event involving shared data. The clock started at 09:12 today. Do we tell them now?',ctx:'Nothing so far shows that a fingerprint left our systems. Nothing shows that none did.',o:[
+  {t:'Yes: tell all 40 lenders now what we know, and follow up when the patch is live',s:10,r:-5,fb:'Inside the agreement, and lenders hear it from you before they hear it from anyone else.'},
+  {t:'Wait until the patch is live, then tell them once',s:4,r:5,fb:'One clean message, if the patch lands inside 72 hours. If anything slips, you have breached the agreement as well.'},
+  {t:'No. Nothing left our systems, so there is nothing to tell.',s:0,r:15,fb:'You cannot show that. The agreement asks for notice of the event, not of proven harm.'}]},
+ '3.2.rotate':{own:'sec',by:'ARC',q:'A new key means new fingerprints. The 14-day counters are keyed by fingerprint, and we do not keep the identities to re-key them. How do we rotate?',ctx:'NFR Requirements writes the security requirement down before anyone touches the key. The bugfix scope skips this stage.',o:[
+  {t:'Dual-key window: write with the new key, read with both, retire the old key after 14 days',s:10,q:5,r:-10,fb:'ID-VEL-02 keeps its memory through the rotation, and the old key dies on a known date.'},
+  {t:'Hard cutover: switch to the new key and let the counters rebuild',s:2,r:15,fb:'For 14 days every identity looks new. A ring that started last week becomes invisible again.'},
+  {t:'Keep the key. The policy is tight now.',s:0,r:20,fb:'Everything computed with the key during the exposure stays valid for as long as the key lives.'}]},
+ '3.2.latency':{when:()=>dv('3.2.rotate')===0,own:'ops',by:'ARC',q:'Reading with two keys doubles the KMS calls on the assessment path for 14 days. What budget does the rotation get?',ctx:'The network check has an SLO: p99 under 150 ms. Today it runs at 141 ms.',o:[
+  {t:'Stay inside 150 ms: cache the data keys per request, and measure before and after',s:10,fb:'The rotation costs lenders nothing they can see.'},
+  {t:'Accept the extra latency for 14 days',s:3,r:5,fb:'p99 moves to about 190 ms: outside the SLO for two weeks, by decision.'}]},
+ '3.5.grant':{own:'eng',by:'DEV',q:'The wildcard that exposed the key lives in a shared CDK construct used by 11 other stacks. Where do I fix it?',ctx:'A question raised mid-build. The agent stops to ask instead of widening the patch by itself.',o:[
+  {t:'Scope the grant in our stack now, and open a separate intent for the shared construct',s:10,fb:'The patch stays small and urgent. The wider cleanup gets its own plan and its own review.'},
+  {t:'Rewrite the shared construct in this patch',s:3,r:10,fb:'An urgent security patch now redeploys 11 stacks that nobody planned to touch this week.'},
+  {t:'Leave the wildcard and add an explicit deny for the CI role',s:0,r:10,fb:'The next role created under that wildcard gets the key again.'}]},
+ '3.6.neg':{own:'sec',by:'QA',q:'How do we prove the key is closed?',ctx:'Build and Test is the evidence. The advisory was about who could use the key, not about whether the service works.',o:[
+  {t:'Negative tests: assume every other role in the account, and show that each one is denied',s:10,q:5,fb:'A test that would have failed before the patch. It also tells you exactly who is now locked out.'},
+  {t:'Show that the fingerprint service can still use the key',s:2,r:10,fb:'That proves the door opens for the right role. The advisory was about who else it opens for.'}]},
+ '4.1.strategy':{own:'ops',by:'PIP',q:'How does the patch reach production?',ctx:'This decides how quickly and safely you can undo a key change.',o:[
+  {t:'Canary 5% → 25% → 100%, rolling back automatically if fingerprint errors appear',s:10,fb:'A key change with a half-way point where you can still stop.'},
+  {t:'Blue/green switch',s:6,fb:'Fast to flip back, but every assessment changes keys in the same second.'},
+  {t:'All at once. It is urgent.',s:0,r:10,fb:'Urgent changes are the ones that most need a way back.'}]},
+ '4.3.window':{own:'pm',by:'PIP',q:'The patch is ready at 15:30. When does it ship?',ctx:'The 72-hour notice clock runs out tomorrow at 09:12.',o:[
+  {t:'Today at 16:00, with the whole team online',s:10,fb:'If the rotation misbehaves, everyone who understands it is watching.'},
+  {t:'Tonight at 23:30, when traffic is lowest',s:0,r:10,fb:'The lowest traffic, and one person awake to watch a key rotation.'}]},
+ '4.4.alarm':{own:'ops',by:'OPS',q:'The exposure ran for six days before Theo found it by hand. What tells us next time?',ctx:'Observability Setup.',o:[
+  {t:'An alarm whenever any principal outside the allowed list calls the key',s:10,q:5,fb:'The next unexpected caller pages someone within minutes.'},
+  {t:'A weekly report of key usage',s:3,fb:'The last exposure ran for six days. A weekly report finds the next one after it is over.'}]},
+};
+
+const units=()=>[{id:'aegle-api',kind:'service + infra',st:'(no Units in this scope)',plan:'restrict the fingerprint key and rotate it',files:11,tests:37}];
+const rotTxt=()=>({dual:'dual-key window: write new, read both, retire the old key after 14 days',hard:'<span class="wa">hard cutover: switch keys, counters rebuild from zero</span>',none:'<span class="no">key not rotated</span>'})[rotation()];
+
+const stages={
+...initStages(REC,{ask:ASK,intent:'sec-014-fingerprint-key (AEG-SEC-014)',ws:'brownfield · TypeScript 5 · Node 20 · AWS CDK · repo <code>aegle-api</code> (codekb found)'}),
+
+'2.1':{
+ why:'You cannot restrict a key until you know everything that uses it.',
+ dec:['2.1.callers'],
+ files:[
+  {p:KB+'code-quality-assessment.md',b:()=>T(['ID','Finding','Where'],[['<b class="wa">SEC-1</b>','<b>shared CI role is granted <code>kms:*</code> on <code>alias/aegle-*</code></b>','infra/constructs/ci-role.ts:27'],['SEC-2','the fingerprint key policy delegates everything to IAM','infra/kms.ts:14'],['SEC-3','three call sites for GenerateMac: fingerprint-svc, reconcile job, recompute job','src/, jobs/'],blindScan()?null:['<b class="wa">SEC-4</b>','<b>a fourth caller in no repository: the fraud-ops ring notebook, role <code>analyst-shared</code></b>','CloudTrail, 90 d']])+P('Exposure: 41,200 GenerateMac calls from 203.0.113.77 between 3 and 9 December '+SRC('CloudTrail')+'.')},
+  {p:KB+'dependencies.md',b:()=>L(['KMS <code>alias/aegle-fp-hmac</code> ← fingerprint-svc','KMS <code>alias/aegle-fp-hmac</code> ← jobs/reconcile, jobs/recompute-counts',blindScan()?'<span class="muted">external callers: not checked</span>':'KMS <code>alias/aegle-fp-hmac</code> ← <b>fraud-ops notebook</b> <span class="wa">(not in any repository)</span>'])},
+  {p:KB+'reverse-engineering-timestamp.md',opt:1,b:()=>P('Diff scan at 2026-12-09T09:58Z: infra/, src/fingerprint/ and jobs/.'+(blindScan()?'':' Cross-checked against CloudTrail for the key, 90 days.'))}],
+ pre:[['DEV','Scanning for everything that touches <code>alias/aegle-fp-hmac</code>: grants, policies and call sites.'],['DEV','Found the grant: the shared CI role has <code>kms:*</code> on every aegle key. Flagging it as SEC-1.']],
+ post:[['DEV','Findings written to the space-level codekb.']],
+ finds:()=>blindScan()?[{by:'DEV',t:'The scan lists who can call the key according to the code. Nobody has checked who actually did.',src:'dependencies.md:L3',fix:'2.1.callers',ch:'Cross-check callers against CloudTrail'}]:[]},
+
+'2.3':{
+ dec:['2.3.done','2.3.tell'],
+ files:[{p:REC+'inception/requirements-analysis/requirements.md',b:()=>H('Advisory')+P('AEG-SEC-014 · HIGH. A CI access key appeared in a public build log. It could call the key that turns identities into fingerprints.')+H('Security requirements')+L(['SR-1: the leaked credential is revoked <span class="ok">(done 09:12)</span>','SR-2: key policy: '+pk('2.3.done',['usable only by named roles','usable only by named roles','<span class="no">unchanged</span>']),'SR-3: key rotation: '+pk('2.3.done',['rotated in this patch','<span class="wa">left for the yearly schedule</span>','<span class="no">none</span>']),'SR-4: evidence: '+pk('2.3.done',['every use of the key from 3 to 9 December accounted for','<span class="muted">none required</span>','<span class="muted">none required</span>']),'SR-5: lenders: '+pk('2.3.tell',['told today, inside the 72-hour window','<span class="wa">told once the patch is live</span>','<span class="no">not told</span>']),S.flags.fourth?'<b>SR-6: the fraud-ops notebook gets its own role and its own scoped grant</b> '+SRC('SEC-4'):null])},
+        {p:REC+'inception/requirements-analysis/traceability.json',opt:1,b:()=>PRE('{ "SR-2": ["SEC-1", "SEC-2"], "SR-3": ["AEG-SEC-014"], "SR-5": ["DSA §7.1"]'+(S.flags.fourth?', "SR-6": ["SEC-4"]':'')+' }')}],
+ pre:[['PRD','Writing down what "patched" means, and who has to be told. Two questions need humans.']],
+ post:[['PRD','Writing <code>requirements.md</code> and <code>traceability.json</code>.'],['PLR','Reviewing the requirements against the advisory…']],
+ sfail:()=>blindScan()||S.flags.fourth?null:{s:'upstream-coverage',t:'requirements.md never references finding SEC-4 from the code scan: a fourth caller uses the key from outside the repository.',src:'requirements.md → code-quality-assessment.md:SEC-4',key:'fourth',ch:'Cover the fraud-ops notebook (SEC-4)',fixmsg:'SR-6 added: the notebook gets its own role and a scoped grant. Sensor re-run: pass.'},
+ finds:()=>{const f=[];
+  if(dv('2.3.done')===1)f.push({by:'PLR',t:'Without rotation, anything computed with the key during the six-day exposure stays valid until next year.',src:'requirements.md:SR-3',fix:'2.3.done',ch:'Include key rotation in the patch'});
+  if(dv('2.3.done')===2)f.push({by:'PLR',t:'Revoking one credential leaves SEC-1 open: any CI role can still use the key.',src:'requirements.md:SR-2',fix:'2.3.done',ch:'Restrict the key and rotate it'});
+  if(dv('2.3.tell')===2)f.push({by:'PLR',t:'DSA §7.1 requires notice of the event within 72 hours, whether or not harm is shown.',src:'requirements.md:SR-5',fix:'2.3.tell',ch:'Notify all 40 lenders today'});
+  return f}},
+
+'3.2':{
+ dec:['3.2.rotate','3.2.latency'],
+ files:[{p:REC+'construction/nfr-requirements/security-requirements.md',b:()=>L(['Key use: '+(dv('2.3.done')===2?'<span class="no">unchanged</span>':'GenerateMac allowed for named roles only; everything else denied in the key policy'),'Rotation: '+pk('3.2.rotate',['dual-key window: write with the new key, read with both, retire the old key on day 14','<span class="wa">hard cutover; counters rebuild from zero</span>','<span class="no">none</span>']),'Evidence: CloudTrail for the key retained 400 days'])},
+        {p:REC+'construction/nfr-requirements/performance-requirements.md',b:()=>L(['Network check SLO: p99 &lt; 150 ms (today 141 ms)',dv('3.2.rotate')===0?'During the dual-key window: '+pkd('3.2.latency',['stay inside the SLO; data keys cached per request','<span class="wa">about 190 ms accepted for 14 days</span>'],'not decided yet'):'No change expected'])},
+        {p:REC+'construction/nfr-requirements/observability-requirements.md',opt:1,b:()=>L(['Count of GenerateMac calls by principal','Count of fingerprints matched with the old key, by day'])}],
+ pre:[['ARC','NFR requirements for the patch. The hard one is rotation: the counters are keyed by fingerprint, and the identities behind them are not stored anywhere.']],
+ post:[['ARC','Writing the security and performance requirements.'],['ARV','Reviewing the NFR requirements…']],
+ finds:()=>{const f=[];
+  if(dv('3.2.rotate')===1)f.push({by:'ARV',t:'A hard cutover orphans every counter. ID-VEL-02 cannot see any ring that began in the last 14 days.',src:'security-requirements.md:L2',fix:'3.2.rotate',ch:'Rotate through a dual-key window'});
+  if(dv('3.2.rotate')===2)f.push({by:'ARV',t:'Requirement SR-3 says the key is rotated in this patch. This stage says it is not.',src:'security-requirements.md:L2',fix:'3.2.rotate',ch:'Rotate through a dual-key window'});
+  if(dv('3.2.latency')===1)f.push({by:'ARV',t:'190 ms breaks the network-check SLO for 14 days. Caching data keys per request avoids it.',src:'performance-requirements.md:L2',fix:'3.2.latency',ch:'Cache data keys and stay inside 150 ms'});
+  return f}},
+
+'3.5':{
+ files:[{p:REC+'construction/code-generation/code-generation-plan.md',b:()=>P('This scope has no Units Generation, so there are no Units: one plan for the one change.')+L(['<code>infra/kms.ts</code>: '+(dv('2.3.done')===2?'<span class="no">no change</span>':'key policy names the allowed roles and denies everyone else'),'<code>infra/constructs/ci-role.ts</code>: '+pk('3.5.grant',['grant scoped in this stack; shared construct goes to the backlog','<span class="wa">shared construct rewritten (11 stacks redeploy)</span>',S.flags.grantFix?'grant scoped in this stack (after the negative test failed)':'<span class="no">wildcard kept; explicit deny for the CI role</span>'],0),'<code>src/fingerprint/</code>: '+rotTxt()+(dv('2.3.done')===0&&dv('3.2.rotate')===undefined?' <span class="wa">(no rotation requirement was written: NFR Requirements is not in this scope)</span>':''),'Fraud-ops notebook: '+(S.flags.fourth?'own role, own scoped grant '+SRC('SR-6'):blindScan()?'<span class="muted">not known to this plan</span>':'<span class="wa">not in the requirements; no grant planned</span>')])},
+        {p:REC+'construction/code-generation/code-summary.md',b:()=>T(['Change','Files','Tests'],[['key policy and grants',4,12],rotation()==='none'?null:['key rotation ('+rotation()+')',5,19],S.flags.fourth?['notebook role',2,6]:null,dv('3.5.grant')===1?['<span class="wa">shared CI construct (11 stacks)</span>',9,4]:null])},
+        {p:REC+'construction/code-generation/unit-test-instructions.md',opt:1,b:()=>PRE('npm test -- --coverage\nnpm run test:policy   # assumes each role and calls kms:GenerateMac')}],
+ pre:[['DEV','Drafting the code plan. No code is written until the plan is approved.']],
+ post:[['DEV','Patch generated. Writing <code>code-summary.md</code>.'],['ARV','Reviewing the diff against the security requirements…']],
+ sfail:()=>({s:'required-sections',t:'code-summary.md is missing a required H2 heading.',src:'code-summary.md',auto:'DEV',fixmsg:'Heading restored. Sensor re-run: pass.'}),
+ finds:()=>dv('3.5.grant')===1?[{by:'ARV',t:'The diff redeploys 11 stacks that have nothing to do with this advisory.',src:'infra/constructs/ci-role.ts',fix:'3.5.grant',ch:'Scope the grant here; backlog the construct'}]:dv('3.5.grant')===2&&!S.flags.grantFix?[{by:'ARV',t:'An explicit deny names one role. The wildcard still gives the key to any role created tomorrow.',src:'infra/constructs/ci-role.ts:27',fix:'3.5.grant',ch:'Scope the grant here; backlog the construct'}]:[]},
+
+'3.6':{
+ dec:['3.6.neg'],
+ files:[{p:REC+'construction/build-and-test/test-results.md',b:()=>T(['Suite','Result'],[['unit','<span class="ok">489 passed</span>'],['integration','<span class="ok">43 passed</span>'],['policy: fingerprint-svc can use the key','<span class="ok">allowed</span>'],['policy: every other role is denied',pk('3.6.neg',[grantClosed()?'<span class="ok">36 of 36 denied</span>':'<span class="no">a new role under the wildcard is allowed</span>','<span class="wa">not run</span>'])],rotation()==='dual'?['rotation: old-key fingerprints still match','<span class="ok">pass</span>']:null])},
+        {p:REC+'construction/build-and-test/build-instructions.md',opt:1,b:()=>PRE('npm ci && npm run build && npm test'+(dv('3.6.neg')===0?' && npm run test:policy':''))}],
+ pre:[['QA','Building, then running the unit and integration suites.'],['QA','One question first: what counts as proof that the key is closed?']],
+ post:[['QA','Writing <code>test-results.md</code>.']],
+ finds:()=>dv('3.6.neg')===1?[{by:'QA',t:'No test shows that anyone is denied. The build proves only that the service still works.',src:'test-results.md:L4',fix:'3.6.neg',ch:'Add negative tests for every other role'}]:[]},
+
+'4.1':{
+ dec:['4.1.strategy'],
+ files:[{p:REC+'operation/deployment-pipeline/deployment-strategy.md',b:()=>P(pk('4.1.strategy',['<b>Canary</b> 5% → 25% → 100%, 10 min bake each, automatic rollback on fingerprint errors','<b>Blue/green</b> switch with instant flip-back','<b>All at once</b>']))+P('Rotation: '+rotTxt()+'.')},
+        {p:REC+'operation/deployment-pipeline/rollback-runbook.md',b:()=>L(['Trigger: fingerprint errors, or ID-VEL-00 above 1%','Action: '+pk('4.1.strategy',['canary auto-rollback (~2 min)','flip to blue (~1 min)','redeploy previous (~8 min)']),rotation()==='dual'?'The old key stays enabled until day 14, so rolling back loses nothing':rotation()==='hard'?'<span class="wa">The old key is scheduled for deletion; rolling back needs it re-enabled first</span>':null])},
+        {p:REC+'operation/deployment-pipeline/cd-config.md',opt:1,b:()=>PRE('pipeline: aegle-api-cd\nstages: staging → prod')}],
+ pre:[['PIP','Planning how the patch reaches production, and how it comes back out.']],
+ post:[['PIP','Writing the deployment strategy and rollback runbook.']],
+ finds:()=>dv('4.1.strategy')===2?[{by:'PIP',t:'All-at-once gives a key change no half-way point, and rollback takes about 8 minutes.',src:'deployment-strategy.md:L1',fix:'4.1.strategy',ch:'Use a canary with auto-rollback'}]:[]},
+
+'4.3':{
+ dec:['4.3.window'],
+ files:[{p:REC+'operation/deployment-execution/deployment-log.md',b:()=>PRE(pk('4.1.strategy',['15:58 canary 5%  ✓ fingerprints match\n16:08 canary 25% ✓ fingerprints match\n16:18 100%       ✓','16:00 green up ✓\n16:05 flip ✓','16:00 deploy 100% ✓'])+'\n'+({dual:'16:20 new key live · old key readable until day 14',hard:'<span class="wa">16:20 new key live · old key disabled</span>',none:'<span class="no">key unchanged</span>'})[rotation()])},
+        {p:REC+'operation/deployment-execution/smoke-test-results.md',b:()=>L(['fingerprint-svc computes a fingerprint ✓',grantClosed()?'CI role calls GenerateMac → AccessDenied ✓':'<span class="no">a new CI role calls GenerateMac → allowed ✗</span>',rotation()==='hard'?'<span class="wa">seeded ring from last week → no ID-VEL-02 (counters reset)</span>':'seeded ring from last week → ID-VEL-02 ✓'])}],
+ pre:[['PIP','Ready to deploy the patch to prod. The deploy window is a human call.']],
+ post:[['PIP','Writing the deployment log and smoke test results.']],
+ finds:()=>dv('4.3.window')===1?[{by:'PIP',t:'A key rotation at 23:30 with one engineer online, hours before the notice deadline.',src:'deployment-log.md:L1',fix:'4.3.window',ch:'Ship at 16:00 with the team online'}]:[]},
+
+'4.4':{
+ dec:['4.4.alarm'],
+ files:[{p:REC+'operation/observability-setup/alarms.md',b:()=>L(pk('4.4.alarm',[['<b>any principal outside the allowed list calls the key → page</b>','existing latency and error burn-rate alarms (unchanged)'],['weekly key-usage report by email','existing latency and error burn-rate alarms (unchanged)']]))},
+        {p:REC+'operation/observability-setup/slo-config.md',b:()=>PRE('slo: network-check-availability  target: 99.9%  window: 30d   # unchanged\nslo: network-check-latency      p99 < 150ms                # unchanged')},
+        {p:REC+'operation/observability-setup/dashboards.md',opt:1,b:()=>L(['Fingerprint key: GenerateMac calls by principal'])}],
+ pre:[['OPS','The exposure was found by a person reading a build log. I am wiring up something that does not rely on that.']],
+ post:[['OPS','Writing alarms and dashboards.']],
+ finds:()=>dv('4.4.alarm')===1?[{by:'OPS',t:'A weekly report cannot catch an exposure while it is happening.',src:'alarms.md:L1',fix:'4.4.alarm',ch:'Alarm on unexpected principals'}]:[]},
+};
+
+/* ---------- the incident: whoever had the credential comes back ---------- */
+function incident(D){
+  const rot=rotation(),closed=grantClosed(),noNfr=D['2.3.done']===0&&D['3.2.rotate']===undefined;
+  const fourthOk=!!S.flags.fourth;
+  const W2={
+    dual:{id:'lat',n:'Dual-key latency',sev:55,chart:'p99',sym:'The network check is at <b>190 ms</b> p99 with both keys being read.',rc:'3.2 accepted the extra KMS calls for the 14-day window.',auto:D['3.2.latency']===0,autoLog:'Data keys are cached per request (3.2). p99 is 148 ms with both keys live.'},
+    hard:{id:'blind',n:'Blind counters',sev:90,chart:'err',sym:'Fraud ops: a ring that hit four lenders last week has just passed clean at a fifth.',rc:noNfr?`Nobody wrote down how to rotate: NFR Requirements is not in the ${scope().n} scope. The Developer switched keys, and every counter started again from zero.`:'3.2 chose a hard cutover, so every counter started again from zero.'},
+    none:{id:'valid',n:'Old fingerprints still work',sev:80,chart:'err',sym:'Requests are arriving with well-formed fingerprints for identities no lender has ever submitted.',rc:D['2.3.done']===0?'3.2 kept the old key, so everything computed during the exposure still matches.':'The key was never rotated (2.3), so everything computed during the exposure still matches.'},
+  }[rot];
+  const waves=[
+    {id:'replay',n:closed?'Replay with the old credential':'A new role, the same key',sev:closed?50:D['2.3.done']===2?90:85,chart:'rps',
+     sym:closed?'203.0.113.77 is back, calling GenerateMac a thousand times a minute.':'GenerateMac calls are succeeding from a CI role that was created yesterday.',
+     rc:closed?'The same actor, trying the revoked credential and then everything near it.':D['2.3.done']===2?'Only the credential was revoked (2.3). The wildcard grant that gives any CI role the key was never closed.':'The wildcard grant is still there (3.5). The deny covered one role, and the attacker used another.',
+     auto:closed,autoLog:'AccessDenied on every call: the key policy names its callers, and this is not one of them.'},
+    W2,
+    {id:'locked',n:'Fraud ops locked out',sev:65,chart:'err',sym:'The fraud-ops ring notebook fails with AccessDenied, in the middle of the incident it exists for.',
+     rc:blindScan()?'A fourth caller uses the key from outside the repository. The code scan (2.1) could not see it, so the lockdown cut it off.':'The fourth caller was in the scan (SEC-4), and the requirements never covered it. The lockdown cut it off.',
+     auto:fourthOk,autoLog:'The notebook got its own role and scoped grant in the patch (SR-6). Fraud ops is already tracing the ring.'},
+  ];
+  const abil=[
+   {id:'investigate',n:'Investigate',ag:'OPS',role:'ops',cast:()=>D['4.4.alarm']===0?1:2,cd:0,util:1,d:'Read CloudTrail and the key metrics to find the cause.',src:()=>D['4.4.alarm']===0?'4.4: unexpected callers already page (fast)':'always available'},
+   {id:'lockdown',n:'Lock the key policy down',ag:'DSO',role:'sec',cast:3,cd:10,d:'Name the allowed roles in the key policy and deny everyone else.',dmg:{replay:100},src:()=>'always available'},
+   {id:'block',n:'Block the source address',ag:'DSO',role:'sec',cast:1.5,cd:8,d:'Drop the caller at the edge. It will come back from somewhere else.',dmg:{replay:45,valid:35},src:()=>'always available'},
+   {id:'dualread',n:'Hotfix: read with both keys',ag:'DEV',role:'eng',cast:6,cd:15,d:'Re-enable the old key for reads so the counters remember again.',dmg:{blind:100},src:()=>'always available (slow)'},
+   {id:'rotate',n:'Emergency rotation',ag:'AWS',role:'ops',cast:6,cd:15,d:'Rotate the key now, through a dual-key window.',dmg:{valid:100},src:()=>'always available (slow)'},
+   {id:'cache',n:'Cache data keys',ag:'DEV',role:'eng',cast:4,cd:10,d:'Cut the extra KMS calls on the assessment path.',dmg:{lat:100},src:()=>'always available'},
+   {id:'grant',n:'Grant fraud ops access',ag:'AWS',role:'sec',cast:2,cd:10,d:'Give the ring notebook its own role and a scoped grant.',dmg:{locked:100},src:()=>'always available'},
+   {id:'rollback',n:'Roll back the patch',ag:'PIP',role:'ops',cast:()=>[3,2,8][D['4.1.strategy']??2],cd:0,once:1,util:1,d:'A blunt fix: ends the incident, and the advisory is open again.',src:()=>'4.1: '+(['canary (~3 s)','blue/green (~2 s)','all-at-once (~8 s)'][D['4.1.strategy']??2])},
+   {id:'notify',n:'Notify lenders',ag:'PRD',role:'po',cast:()=>D['2.3.tell']===0?1:2,cd:0,once:1,util:1,d:'Tell lenders what is happening and what to distrust.',src:()=>D['2.3.tell']===0?'2.3: lenders already know about the advisory (fast)':'always available'},
+   {id:'escalate',n:'Page incident commander',ag:'DLV',role:'pm',cast:2,cd:0,once:1,util:1,d:'An IC coordinates the response, so all casts are 40% faster.',src:()=>'always available'},
+  ];
+  return {
+    h:'The credential comes back',
+    p:'Day five. The address from the CloudTrail logs is calling again, and it is trying everything near the key. Alarms are firing.',
+    unshipped:'Day five. The address from the CloudTrail logs is calling again. Alarms are firing.',
+    comms:'Lenders who know can treat network flags with care until this is over.',
+    abil,waves,
+    logs:{notify:'Lenders told: an active probe against the fingerprint key, and what the team has done.',rollback:'Rolled back. The key policy is open again and AEG-SEC-014 is back to HIGH.'},
+    result:{won:'All three waves handled. The key answered only to the roles named in its policy.',rollback:'The incident is over, but the patch is out and the advisory is open again.',breach:'The error budget ran out while the key was still in play.'},
+    score:{notified:['Lenders notified','Lenders never notified'],rolled:'Patch rolled back'},
+    why(){const it=[];
+      it.push([closed?'The replay hit a closed key':'The key was still open to other roles',closed?'good':'bad',closed?'2.3 required the key policy to name its callers, and 3.5 scoped the grant.':D['2.3.done']===2?'2.3 stopped at revoking one credential.':'3.5 left the wildcard grant and denied a single role.']);
+      it.push([rot==='dual'?(W2.auto?'The rotation cost lenders nothing':'The dual-key window ran outside the SLO'):rot==='hard'?'The rotation blinded ID-VEL-02':'Nothing computed during the exposure was invalidated',rot==='dual'&&W2.auto?'good':'bad',rot==='dual'?(W2.auto?'3.2 wrote the dual-key window and its latency budget before anyone touched the key.':'3.2 chose the dual-key window and accepted 190 ms for it.'):rot==='hard'?(noNfr?`The ${scope().n} scope has no NFR Requirements stage, so the rotation rule was never written.`:'3.2 chose a hard cutover.'):'The key was never rotated.']);
+      it.push([fourthOk?'Fraud ops kept working':'The lockdown cut off fraud ops',fourthOk?'good':'bad',fourthOk?'The upstream-coverage sensor at 2.3 caught that SEC-4 was missing, and someone asked for the fix.':blindScan()?'2.1 trusted the repository, so the fourth caller was never found.':scope().sensors?'The upstream-coverage sensor flagged SEC-4 at 2.3, and it was accepted as risk.':`The ${scope().n} scope runs no sensors, so nothing noticed the requirements had skipped SEC-4.`]);
+      return it},
+  };
+}
+
+function debrief(C2,D){
+  C2('2.1',D['2.1.callers']===0,D['2.1.callers']===0?'Checking CloudTrail as well as the code found a caller that is in no repository.':'The scan knew who could call the key in code, and nothing about who really did.');
+  C2('2.3',D['2.3.done']===0,D['2.3.done']===0?'"Patched" meant revoke, restrict, rotate and prove: four different things.':D['2.3.done']===1?'The key was restricted but never rotated, so the exposure outlived the patch.':'Revoking one credential left the grant that exposed the key.');
+  C2('2.3',D['2.3.tell']===0,D['2.3.tell']===0?'Lenders were told inside the 72 hours the agreement gives.':D['2.3.tell']===1?'Notice was tied to the patch date, with the 72-hour clock still running.':'Lenders were never told about an event the agreement says they must hear about.');
+  if(D['2.1.callers']===0)C2('SENS',!!S.flags.fourth,S.flags.fourth?'The upstream-coverage sensor caught a finding the requirements had skipped (SEC-4).':'The fourth caller (SEC-4) never made it into the requirements.');
+  if(D['2.3.done']===0)C2('3.2',rotation()==='dual',D['3.2.rotate']===undefined?`NFR Requirements is not in the ${scope().n} scope, so nobody wrote down how to rotate a key that every counter depends on.`:rotation()==='dual'?'A dual-key window rotated the key without costing ID-VEL-02 its 14-day memory.':'The rotation rule that was written still lost the counters or kept the key.');
+  if(D['3.5.grant']!==undefined)C2('3.5',D['3.5.grant']===0,D['3.5.grant']===0?'The grant was fixed where it mattered, and the shared construct went to the backlog.':D['3.5.grant']===1?'An urgent patch grew to redeploy 11 unrelated stacks.':'An explicit deny for one role left the wildcard for the next one.');
+  if(D['3.6.neg']!==undefined)C2('3.6',D['3.6.neg']===0,D['3.6.neg']===0?'Negative tests proved who is locked out, which is what the advisory was about.':'The build proved the service still works, not that anyone is denied.');
+  if(D['4.4.alarm']!==undefined)C2('4.4',D['4.4.alarm']===0,D['4.4.alarm']===0?'An unexpected caller on the key now pages someone within minutes.':'The next exposure will be found by a weekly report, after it is over.');
+}
+
+return {
+ id:'secpatch',n:'Advisory AEG-SEC-014',kind:'security advisory',col:'var(--red)',
+ tag:'A leaked CI credential could use the key that turns identities into fingerprints.',
+ d:'Theo finds a CI access key in a public build log. CloudTrail shows 41,200 calls to the fingerprint key from an address nobody recognises. Revoke, restrict and rotate, without costing ID-VEL-02 the 14 days its counters remember, and inside the 72 hours lenders are owed notice.',
+ ask:ASK,intent:'sec-014-fingerprint-key',REC,KB,
+ boot:{repo:'aegle-api',ws:'brownfield · TypeScript + Python · 17,120 LOC · codekb found',note:'Advisory AEG-SEC-014 is open, severity HIGH. The leaked credential was revoked 40 minutes ago.'},
+ scopes:['security-patch','bugfix','express'],best:'security-patch',
+ fit:{
+  'security-patch':{v:'best',t:'The bugfix path plus NFR Requirements, so the security requirement is written down before the patch. Reviews run at full strength.'},
+  bugfix:{v:'poor',t:'Treats the advisory as a defect. No stage writes down how to rotate the key, and reviews are capped at advisory.'},
+  express:{v:'poor',t:'The fastest way to production, with no reviewer, no sensors and no security requirement. A key rotation with nothing checking it.'},
+ },
+ composer:{E:[.22,.38,.61,.83,.44],why:'Risk is HIGH (0.83 ≥ 0.70): a key that every lender\'s fingerprints depend on, and a 72-hour notice clock. Security-patch is the bugfix path plus NFR Requirements, which is where the rotation rule gets written before anyone touches the key. Bugfix skips that stage. Express skips it and every check as well.'},
+ DEC,stages,units,
+ midBuild:{unit:'aegle',dec:'3.5.grant'},
+ loopBack(){
+  if(dv('3.6.neg')!==0||grantClosed()||dv('2.3.done')===2)return null;
+  S.flags.grantFix=true;
+  return {why:'Policy test failure: a role created under the CI wildcard can still call GenerateMac. The explicit deny names one role, and the test made another.',fixed:'Second run: green. The grant is scoped to this stack, and 36 of 36 other roles are denied.'}},
+ deploy:{what:'the key patch',all:'No blast-radius control: every assessment changed keys in the same second.',when:['Today 16:00','Tonight 23:30'],late:'23:34 · one engineer is online'},
+ addStage:{at:'2.3',add:'3.2',ask:'NFR Requirements is not in this scope, but this patch rotates a key that every counter depends on. Add it?',sub:'Nobody has written down how the key rotates without blinding the counters.'},
+ traceGap:()=>S.ran.has('2.3')&&!blindScan()&&!S.flags.fourth,
+ humanSensor:'2.3',
+ badge:{ic:'🗝️',n:'Rotate Without Forgetting',d:'Restrict the key, rotate it through a dual-key window, and prove who is locked out.',test:()=>S.dec['2.3.done']===0&&S.dec['3.2.rotate']===0&&S.dec['3.6.neg']===0},
+ incident,debrief,
+};
+})();
+
 /* Scenario: Network Velocity (ID-VEL-02), a new capability on a production hot path.
    Everything here is story. The method data (stage order, agents, sensors, scopes) lives in src/game.html. */
 SCENARIOS.velocity=(()=>{
@@ -5062,6 +6040,7 @@ const stages={
 },
 /* ===== 2 INCEPTION ===== */
 '2.1':{
+ why:'Agents must understand v1 before changing it. The codekb is shared with every future intent.',
  files:[
   {p:KB+'architecture.md',b:()=>PRE(`lender ─▶ API GW ─▶ λ assess ─┬▶ ID-VEL-01 (per-lender, DynamoDB)
                               ├▶ device check
@@ -5407,7 +6386,7 @@ const STAGES=[
 
 /* ===== 2 INCEPTION ===== */
 {id:'2.1',ph:2,n:'Reverse Engineering',lead:'DEV',col:['ARC'],pat:'Pipeline',own:'eng',hrs:3,alt:['ARC','QA'],
- what:'Scans the existing codebase into a 9-file knowledge base (codekb) at space level.',why:'Agents must understand v1 before changing it. The codekb is shared with every future intent.'},
+ what:'Scans the existing codebase into a 9-file knowledge base (codekb) at space level.',why:'Agents must understand the code as it is before they change it. The codekb is shared with every future intent.'},
 
 {id:'2.2',ph:2,n:'Practices Discovery',lead:'PIP',col:['QA','DEV','DSO'],pat:'Hub & spoke',own:'eng',hrs:2,alt:['DEV','DLV'],cond:1,
  what:'The lead drafts the team\'s practices from the repo, support agents inspect that draft (mutually blind), then the humans are interviewed. Approving the stage promotes the result to team memory.',why:'Agents should follow how this team actually works, not generic best practice.'},
@@ -6049,10 +7028,10 @@ async function canary(){
   const s=S.dec['4.1.strategy']??0;const fri=S.dec['4.3.window']===1;
   setTurn('agents',null,'Deploying to production.');
   const steps=s===0?[5,25,100]:s===1?[100]:[100];
-  const c=card('',`<div class="ck"><span>Deployment · ${['canary','blue/green','all-at-once'][s]}</span><span>${fri?'Fri 17:00':'Tue 10:00'}</span></div><div class="ubar"><div class="ub"><div class="l"><span>Traffic on ${SCN.deploy.what}</span><span class="pc">0%</span></div><div class="t"><i style="width:0"></i></div></div></div><div class="blog"></div>`);
+  const c=card('',`<div class="ck"><span>Deployment · ${['canary','blue/green','all-at-once'][s]}</span><span>${(SCN.deploy.when||['Tue 10:00','Fri 17:00'])[fri?1:0]}</span></div><div class="ubar"><div class="ub"><div class="l"><span>Traffic on ${SCN.deploy.what}</span><span class="pc">0%</span></div><div class="t"><i style="width:0"></i></div></div></div><div class="blog"></div>`);
   const lg=c.querySelector('.blog'),bar=c.querySelector('.t i'),pc=c.querySelector('.pc');
   const log=(t,cls)=>{lg.appendChild(el('div',cls,t));lg.scrollTop=lg.scrollHeight};
-  if(fri)log('17:02 · half the team has already logged off','y');
+  if(fri)log(SCN.deploy.late||'17:02 · half the team has already logged off','y');
   for(const p of steps){bar.style.width=p+'%';pc.textContent=p+'%';NET.packet('PIP','ROOM:4');NET.noc({title:`DEPLOY · ${p}% of traffic on ${SCN.deploy.what}`});await say('PIP',`Traffic at <b>${p}%</b>. Running health checks.`,{after:100});
     await wait(700);log(`${p}% · health ✓ · p99 ${130+Math.round(Math.random()*15)} ms`,'g')}
   if(s===2)log(SCN.deploy.all,'y');

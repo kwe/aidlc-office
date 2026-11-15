@@ -244,6 +244,7 @@ const stages={
 },
 /* ===== 2 INCEPTION ===== */
 '2.1':{
+ why:'Agents must understand v1 before changing it. The codekb is shared with every future intent.',
  files:[
   {p:KB+'architecture.md',b:()=>PRE(`lender ─▶ API GW ─▶ λ assess ─┬▶ ID-VEL-01 (per-lender, DynamoDB)
                               ├▶ device check
