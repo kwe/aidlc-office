@@ -1,0 +1,38 @@
+# Publishes the built game (v3.html) as the site's index.html on GitHub Pages.
+# It deploys the committed v3.html rather than rebuilding it, so the page is the same file the playtest ran against.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: [v3.html, .github/workflows/pages.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          cp v3.html _site/index.html
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -8,8 +8,10 @@ at every gate, and then production pushes back. There are six scenarios to play,
 
 ## Play
 
-Open [`v3.html`](v3.html) in a desktop browser. There is no server and no install step; the 3D assets and all code are
-embedded in the file. A window at least 1200px wide gives the office the most room.
+**[Play it in the browser](https://kwevans.dev/aidlc-office/)** (best on a desktop browser).
+
+To play offline, open [`v3.html`](v3.html) instead. There is no server and no install step; the 3D assets and all code
+are embedded in the file. A window at least 1200px wide gives the office the most room.
 
 - **Mouse:** drag to orbit the office, scroll to zoom, double-click to reset the view, hover anyone to see who they are.
 - **Keys:** `1`–`4` pick an option, `A` approve, `R` request changes, `Space` skip waiting, `M` sound on/off.
@@ -149,6 +151,7 @@ This project is not affiliated with or endorsed by AWS.
 | `src/office/` | The three.js office: scene, camera, characters, effects, painted screens. |
 | `blender/build_assets.py` | Generates every 3D asset (office, 14 agent bots, Conductor, 5 humans, props). |
 | `blender/out/office.glb` | The generated asset file that gets embedded in `v3.html`. |
+| `.github/workflows/pages.yml` | Publishes the committed `v3.html` as the web page on every push to `main` that changes it. |
 | `build.mjs` | Bundles `src/office` with esbuild and inlines it, the scenarios and the GLB into `v3.html`. |
 | `tools/check.mjs` | Fails the build on a syntax error, or if scenario wording appears in the engine. |
 | `tools/playtest.mjs` | Checks every scenario's data, then autoplays each scenario under each scope it offers. |
