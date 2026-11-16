@@ -14,7 +14,11 @@ To play offline, open [`v3.html`](v3.html) instead. There is no server and no in
 are embedded in the file. A window at least 1200px wide gives the office the most room.
 
 - **Mouse:** drag to orbit the office, scroll to zoom, double-click to reset the view, hover anyone to see who they are.
-- **Keys:** `1`–`4` pick an option, `A` approve, `R` request changes, `Space` skip waiting, `M` sound on/off.
+- **Keys:** `1`–`4` pick an option, `A` approve, `R` request changes, `Enter` continue after a teammate's stage, `Space`
+  skip waiting, `M` sound on/off.
+- **Pace:** when a teammate approves a stage, the game holds on a "Stage complete" card that links what the stage wrote,
+  and moves on when you press Continue. Your own gates already wait for you. The ⏸ button in the top bar turns the pause
+  off if you would rather watch the stages run.
 - Choose the work, a scope for it, and a seat (Product Owner, Engineering Lead, Delivery Manager, SRE, Security).
   Network Velocity under the Feature scope takes about 30 minutes; the bug, patch and refactor take about 10.
 

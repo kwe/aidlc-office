@@ -97,9 +97,11 @@ async function run({ scen, prof, auto, role }) {
     if (scen !== 'velocity' && r.undef.length) notes.push('artifacts read decisions that were never made, without saying so: ' + r.undef.join(', '));
     // best answers on the best-fit scope must be winnable: if this breaches, an incident wave has no fix
     if (auto === '1' && prof === bestOf[scen] && r.d && r.d.boss && !r.d.boss.won) notes.push('best answers on the best-fit scope did not hold the incident');
+    // every teammate-gated stage must hold for the player (the harness presses Continue); zero would mean the pause never ran
+    if (r.d && (r.d.pauses < r.d.teamGates || (r.d.teamGates > 0 && !r.d.pauses))) notes.push(`paused after ${r.d.pauses} of ${r.d.teamGates} teammate-gated stages`);
     const ok = r.d && !r.err && !errors.length && !notes.length && r.d.missing.length === 0 && r.d.prof === prof && r.d.scen === scen;
     if (!ok) failed++;
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${tag} stages ${r.d ? r.d.stages + '/' + r.d.plan : '?'}  score ${r.d ? r.d.score : '?'}  incident ${r.d && r.d.boss ? (r.d.boss.won ? 'held' : r.d.boss.rolledBack ? 'rolled back' : 'breached') + ' (' + r.d.boss.cause + ')' : '?'}  jumps ${r.d ? r.d.loops : '?'}${[r.err, ...errors, ...notes].filter(Boolean).map(x => '\n     ' + x).join('')}`);
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${tag} stages ${r.d ? r.d.stages + '/' + r.d.plan : '?'}  score ${r.d ? r.d.score : '?'}  incident ${r.d && r.d.boss ? (r.d.boss.won ? 'held' : r.d.boss.rolledBack ? 'rolled back' : 'breached') + ' (' + r.d.boss.cause + ')' : '?'}  jumps ${r.d ? r.d.loops : '?'}  pauses ${r.d ? r.d.pauses + '/' + r.d.teamGates : '?'}${[r.err, ...errors, ...notes].filter(Boolean).map(x => '\n     ' + x).join('')}`);
   } catch (e) {
     failed++;
     const where = await page.evaluate(() => `stuck at ${S.cur} (stage ${S.idx + 1}/${S.plan ? S.plan.length : '?'})`).catch(() => '');

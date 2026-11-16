@@ -71,12 +71,14 @@ kbd{font:600 11px var(--mono);padding:1px 5px;border:1px solid var(--line2);bord
 .mt.score b{color:var(--accent)}
 .mt.bump{animation:bump .5s}
 @keyframes bump{30%{transform:scale(1.08)}}
-.ctrls{display:flex;gap:4px}
+.ctrls{display:flex;gap:4px;flex-shrink:0}
+/* On one row the meters and buttons keep their width; the intent line gives way with an ellipsis. */
+@media (min-width:1181px){.topbar{min-width:0}.logo{flex:1 1 0}.logo>div:last-child{min-width:0;overflow:hidden}.logo b{display:block}.logo b,.logo small{overflow:hidden;text-overflow:ellipsis}.meters{flex:0 0 auto;flex-wrap:nowrap}}
 .ib{all:unset;cursor:pointer;width:34px;height:34px;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line);background:var(--panel2);font-size:15px}
 .ib:hover{border-color:var(--line2)}
 .ib:focus-visible{outline:2px solid var(--accent)}
 .ib[aria-pressed="false"]{opacity:.5}
-.ib.lbl{width:auto;padding:0 10px;gap:6px;grid-auto-flow:column;font:600 12px var(--body);color:var(--text)}
+.ib.lbl{width:auto;white-space:nowrap;padding:0 10px;gap:6px;grid-auto-flow:column;font:600 12px var(--body);color:var(--text)}
 .ib.lbl[aria-pressed="false"]{opacity:1;color:var(--muted)}
 .tctl{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .tctl .ib{height:32px}
@@ -618,7 +620,7 @@ body.o3fail #net{display:none}
           <div><b><i>03</i>Gate</b>Read the artifacts, weigh the sensors and the reviewer, then approve or request changes.</div>
           <div><b><i>04</i>Survive</b>Take on the production incident. What you approved earlier sets the tools you have.</div>
         </div>
-        <p class="hint">Shortcuts: <kbd>1</kbd>–<kbd>4</kbd> pick an option · <kbd>A</kbd> approve · <kbd>R</kbd> request changes · <kbd>Space</kbd> skip waiting · <kbd>M</kbd> sound on/off. In the office: drag to orbit, scroll to zoom, double-click to reset, hover anyone to see who they are.</p>
+        <p class="hint">Shortcuts: <kbd>1</kbd>–<kbd>4</kbd> pick an option · <kbd>A</kbd> approve · <kbd>R</kbd> request changes · <kbd>Enter</kbd> continue after a teammate's stage · <kbd>Space</kbd> skip waiting · <kbd>M</kbd> sound on/off. In the office: drag to orbit, scroll to zoom, double-click to reset, hover anyone to see who they are.</p>
         <div class="tctl"><button class="ib lbl sndT" id="tSnd" type="button" aria-pressed="true" title="Toggle sound (M)">🔊 Sound on</button><button class="ib lbl" id="tThm" type="button" title="Light or dark theme">◐ Theme</button><button class="ib lbl" id="tourBtn2" type="button" title="A guided walk around the office and everyone in it">▶ Office tour</button></div>
       </section>
     </div>
@@ -677,6 +679,7 @@ body.o3fail #net{display:none}
     <div class="ctrls">
       <button class="speed" id="speedBtn" type="button" title="Game speed" aria-label="Game speed">1×</button>
       <button class="ib lbl sndT" id="sndBtn" type="button" aria-pressed="true" title="Toggle sound (M)">🔊 Sound on</button>
+      <button class="ib" id="pauseBtn" type="button" aria-pressed="true" title="Pause after each teammate's stage, so you can read what was approved" aria-label="Pause after each teammate's stage">⏸</button>
       <button class="ib" id="motBtn" type="button" aria-pressed="true" title="Motion effects" aria-label="Motion effects">✨</button>
       <button class="ib" id="thmBtn" type="button" title="Light or dark theme" aria-label="Toggle theme">◐</button>
       <button class="ib" id="exitBtn" type="button" title="Restart" aria-label="Restart">⟲</button>
@@ -7106,6 +7109,27 @@ function stepsCard(st){
   return c;
 }
 function setStep(i,label){$$('#steps .stp').forEach(s=>{const k=+s.dataset.i;if(s.classList.contains('skipd'))return;s.classList.toggle('done',k<i);s.classList.toggle('now',k===i)});if(label){const s=$(`#steps .stp[data-i="${i}"]`);if(s)s.lastChild.textContent=label}}
+/* After a teammate's gate the workflow holds until the player continues, so there is time to open what was just approved.
+   Your own gate needs no pause (nothing moves until you approve), and the engine steps have no gate. */
+let PAUSE=null;   // releases the pending pause, if there is one
+const pausing=()=>PREFS.pause!==false;
+function stagePause(st){
+  const g=S.gen,p=PEOPLE[st.own],nx=S.plan[S.idx+1],files=Object.values(S.files).filter(f=>f.st===st.id);
+  S.pauses=(S.pauses||0)+1;
+  setTurn('me',S.role,`${p.n} approved. Open anything you want to read, then continue. <kbd>Enter</kbd>`);
+  const c=card('mine',`<div class="ck"><span>Stage complete · ${st.id}</span><span class="owner" style="--oc:var(--${st.own})">${p.n} approved</span></div>
+    <div class="q">${st.n} is done. Take a look before the team moves on.</div>
+    ${files.length?`<span class="hint">What this stage wrote (the Artifacts tab keeps everything):</span><div class="unread">${files.map(f=>`<button class="fl${f.seen?' seen':''}" type="button" data-p="${f.p}">${fname(f.p)}${f.rev>1?' r'+f.rev:''}</button>`).join('')}</div>`:''}
+    <div class="btns"><button class="btn primary" type="button" data-a="cont">Continue${nx?` to ${nx} ${ST[nx].n}`:''} → <kbd>Enter</kbd></button></div>
+    <span class="hint">Nothing moves until you continue. The ⏸ button in the top bar turns this pause off.</span>`);
+  c.querySelectorAll('.fl').forEach(b=>b.onclick=()=>openFile(b.dataset.p));
+  return new Promise((res,rej)=>{
+    const b=c.querySelector('[data-a="cont"]');
+    const go=()=>{if(PAUSE!==go)return;PAUSE=null;ACTIVE=null;b.disabled=true;b.onclick=null;if(g!==S.gen){rej(CANCEL);return}AUD.blip(660,.04);res()};
+    PAUSE=go;ACTIVE={cont:b};b.onclick=go;
+  });
+}
+function applyPause(v){PREFS.pause=v;$('#pauseBtn').setAttribute('aria-pressed',v);if(!v&&PAUSE)PAUSE()}
 function skipBtn(){const b=el('button','btn small','Skip wait ⏭ <kbd>Space</kbd>');b.type='button';b.onclick=skipWait;return b}
 
 /* ---------- stage card & intel ---------- */
@@ -7272,6 +7296,7 @@ async function teamGate(st,fs){
   c.querySelectorAll('.fl').forEach(b=>b.onclick=()=>openFile(b.dataset.p));
   const sb=skipBtn();c.appendChild(sb);
   await wait(1500+req.length*300);sb.remove();
+  c.querySelector('.hint').textContent=`${p.n} read ${req.length} artifact${req.length===1?'':'s'}${fs.length?` and raised ${fs.length} item${fs.length===1?'':'s'}`:''}.`;
   for(const f of fs){await say('@'+st.own,`Request Changes: ${f.ch}.`);await revise(st,f)}
   const add=addable(st);
   if(add){
@@ -7526,7 +7551,7 @@ async function runStage(st){
   if(PHASE_END[st.id])await phaseCheck(PHASE_END[st.id]);
   await gate(st,fs);
   tick(st.hrs);S.done.add(st.id);audit('STAGE_COMPLETED',st.slug);renderTrack();renderMeters();
-  await wait(350);
+  if(st.own!==S.role&&pausing())await stagePause(st);else await wait(350);
 }
 let bannerT;
 function banner(k,h,p,c){if(!$('#cine').hidden)return;const b=$('#banner');b.style.setProperty('--cc',c||'var(--accent)');b.innerHTML=`<div class="k">${k}</div><h3>${h}</h3><p>${p}</p>`;b.classList.add('on');clearTimeout(bannerT);bannerT=setTimeout(()=>b.classList.remove('on'),1900/(S.speed||1))}
@@ -7807,7 +7832,7 @@ async function startMission(role,prof,skipBoot,scen=PICK.scen){
   runMission();
 }
 function toTitle(){
-  S.gen++;skipWait();ACTIVE=null;BOSS.stop();document.body.classList.remove('bossing');NET.pick(null);boardStatus('');AUD.alarm(false);AUD.ambient(false);NET.alert(false);
+  S.gen++;skipWait();ACTIVE=null;PAUSE=null;BOSS.stop();document.body.classList.remove('bossing');NET.pick(null);boardStatus('');AUD.alarm(false);AUD.ambient(false);NET.alert(false);
   ['#app','#boss','#debrief','#cine','#boot'].forEach(s=>$(s).hidden=true);$('#toasts').innerHTML='';
   renderTitle();$('#title').classList.remove('attract');$('#title').hidden=false;$('#title').scrollTop=0;NET.setMode('title');
 }
@@ -8009,7 +8034,7 @@ function showDebrief(){
       <tr><td>Build</td><td>Sequential</td><td>Units, a walking skeleton, verified Unit checkpoints, and swarm in git worktrees</td></tr></table></section>
     <section class="glass dpanel" style="grid-column:1/-1"><h3>Your scoring log</h3><div class="plog">${S.log.map(l=>`<div><b style="color:var(--${l.n>0?'good':l.n<0?'bad':'dim'})">${l.n>0?'+':''}${l.n}</b><span>${l.st?`<span class="mono" style="color:var(--dim)">${l.st}</span> `:''}${l.why}</span></div>`).join('')}</div></section>
   </div>`;
-  $('#debrief').hidden=false;$('#debrief').scrollTop=0;window.__done={scen:S.scen,prof:S.prof,score:final,rank,badges:[...S.badges],stages:S.done.size,missing:S.plan.filter(i=>!S.done.has(i)),plan:S.plan.length,audit:S.auditN,files:Object.keys(S.files).length,boss:S.boss,loops:S.loops.length,unflagged:S.unflagged};
+  $('#debrief').hidden=false;$('#debrief').scrollTop=0;window.__done={scen:S.scen,prof:S.prof,score:final,rank,badges:[...S.badges],stages:S.done.size,missing:S.plan.filter(i=>!S.done.has(i)),plan:S.plan.length,audit:S.auditN,files:Object.keys(S.files).length,boss:S.boss,loops:S.loops.length,unflagged:S.unflagged,pauses:S.pauses||0,teamGates:S.plan.filter(i=>!ST[i].auto&&ST[i].own!==S.role).length};
   $('#dAgain').onclick=()=>startMission(S.role,S.prof,true,S.scen);
   $('#dTitleBtn').onclick=toTitle;
   $('#dCopy').onclick=async()=>{const txt=`AI-DLC v2 Mission Control: ${final} pts (${rank}) as ${PEOPLE[S.role].t}, ${SCN.n}, ${prof.n} scope. Badges ${S.badges.size}/${badgeList().length}. Incident: ${S.boss?(S.boss.won?'SLO held':S.boss.rolledBack?'rolled back':'SLO breached')+`, ${S.boss.budget}% budget`:'n/a'}.`;
@@ -8085,7 +8110,7 @@ const TOUR=(()=>{
   function start(n=0){
     if(!NET.ok)return;
     if(!NET.off.ready){setTimeout(()=>start(n),120);return}   // the office is still loading
-    AUD.init();on=true;S.gen++;skipWait();
+    AUD.init();on=true;S.gen++;skipWait();ACTIVE=null;PAUSE=null;
     ['#title','#app','#boot','#boss','#debrief','#cine'].forEach(s=>$(s).hidden=true);
     $('#tour').hidden=false;NET.setMode('tour');show(n);
   }
@@ -8110,6 +8135,7 @@ function initControls(){
   $('#speedBtn').onclick=()=>{const v=[1,2,4];S.speed=v[(v.indexOf(S.speed)+1)%v.length];PREFS.speed=S.speed;savePrefs();$('#speedBtn').textContent=S.speed+'×'};
   const snd=()=>{const on=AUD.toggle();sndUI();toast(on?'Sound on':'Sound off','')};
   $$('.sndT').forEach(b=>b.onclick=snd);
+  $('#pauseBtn').onclick=()=>{applyPause(!pausing());savePrefs();toast(pausing()?'Pausing after each teammate\'s stage':'Auto-advance on: teammates\' stages run on without a pause','')};
   $('#motBtn').onclick=()=>{applyMotion(!S.motion);PREFS.motion=S.motion;savePrefs();toast(S.motion?'Motion effects on':'Reduced motion on','')};
   $('#thmBtn').onclick=$('#tThm').onclick=()=>{const t=document.documentElement.dataset.theme==='light'?'dark':'light';applyTheme(t);PREFS.theme=t;savePrefs()};
   let armed=0;
@@ -8133,6 +8159,7 @@ function initControls(){
     if(TOUR.active){if(k==='Escape'){e.preventDefault();TOUR.end()}else if(k==='ArrowRight'){e.preventDefault();TOUR.next()}else if(k==='ArrowLeft'){e.preventDefault();TOUR.back()}return}
     if(!$('#boot').hidden&&(k===' '||k==='Enter'||k==='Escape')){bootFast=true;e.preventDefault();return}
     if(ACTIVE){
+      if(k==='Enter'&&ACTIVE.cont&&tn!=='A'&&(tn!=='BUTTON'||tg.closest('#con,#p-files'))){e.preventDefault();if(!e.repeat)ACTIVE.cont.click();return}
       if(/^[1-7]$/.test(k)&&ACTIVE.opts&&ACTIVE.opts[+k-1]){e.preventDefault();ACTIVE.opts[+k-1].click();return}
       if(k==='a'&&ACTIVE.approve){e.preventDefault();ACTIVE.approve.click();return}
       if(k==='r'&&ACTIVE.request){e.preventDefault();ACTIVE.request.focus();return}
@@ -8144,7 +8171,7 @@ function initControls(){
 }
 function init(){
   applyTheme(PREFS.theme||'dark');   // dark unless the player has switched; the choice is remembered
-  S.speed=PREFS.speed||1;sndUI();
+  S.speed=PREFS.speed||1;sndUI();$('#pauseBtn').setAttribute('aria-pressed',pausing());
   NET.start();applyMotion(PREFS.motion??!RM.matches);
   initControls();renderTitle();NET.setMode('title');
 }
@@ -8167,6 +8194,7 @@ function autoplay(){
       const go=$('#bossGo')||$('#bossDone');if(go){go.click();return}
       $$('#acts .act:not(.locked):not(.casting)').forEach(b=>{if(b.dataset.id!=='rollback'||m==='bad')b.click()});return}
     if(!ACTIVE)return;
+    if(ACTIVE.cont){ACTIVE.cont.click();return}
     if(ACTIVE.opts){const o=ACTIVE.opts.filter(b=>!b.disabled);if(!o.length)return;
       const dec=o.filter(b=>b.dataset.i!==undefined);
       if(dec.length){const want=m==='1'?0:m==='hot'?(S.cur==='2.6'?1:0):Math.max(...dec.map(b=>+b.dataset.i));(dec.find(b=>+b.dataset.i===want)||dec[0]).click()}else o[m==='bad'?o.length-1:0].click();return}
