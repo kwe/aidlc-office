@@ -10,7 +10,7 @@
     "playtest:retro": "node tools/playtest.mjs --file=v4.html"
   },
   "devDependencies": {
-    "esbuild": "^0.25.12",
+    "esbuild": "^0.28.1",
     "puppeteer-core": "^25.17.0",
     "three": "^0.170.0"
   }
