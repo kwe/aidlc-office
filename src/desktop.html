@@ -12,13 +12,19 @@
    nothing here is a real product's name, logo, font or artwork.
    The engine (src/engine.js) is the same one the office edition runs.
    ===================================================================== */
+/* Sysfont (FA Sysfont C) by Alina Sava, FontsArena.com: an open revival of the 1984 system typeface.
+   SIL Open Font License 1.1; the licence text is in fonts/sysfont/OFL.txt. One weight serves every weight asked for.
+   It is limited to plain Latin text: its guessed symbols (the middle dot among them) fall back to the system font. */
+@font-face{font-family:"Sysfont";src:url(data:font/woff2;base64,__SYSFONT__) format("woff2");font-weight:1 1000;font-display:block;
+  unicode-range:U+0020-007E,U+00A0-00B6,U+00B8-00FF}
 :root{
   --ink:#000; --muted:#444; --dim:#767676; --line:#000; --line2:#000; --paper:#fff; --grey:#ddd; --tint:#ccccff;
   --bg:#fff; --bg2:#fff; --panel:#fff; --panel2:#fff; --solid:#fff; --onfill:#fff;
   --cyan:#00659a; --mag:#a4127f; --lime:#2d7a12; --amber:#a86a00; --red:#c4001a; --violet:#5b3fc4;
   --accent:#000080; --good:#006b2d; --bad:#b00020; --warn:#8a5a00;
   --po:#c2185b; --eng:#1a56c4; --pm:#00796b; --ops:#b85c00; --sec:#6a3fc0; --role:var(--eng);
-  --ui:"ChicagoFLF","Chicago","Charcoal","Geneva","Tahoma","Verdana",sans-serif;
+  --ui:"Sysfont","Geneva","Tahoma","Verdana",sans-serif;      /* menus, title bars, buttons, headings: 13px and up */
+  --sm:"Geneva","Tahoma","Verdana",sans-serif;                /* small labels: the pixel font breaks up below 13px */
   --body:"Geneva","Tahoma","Verdana",sans-serif; --display:var(--ui);
   --mono:"Monaco","Courier New",monospace; --serif:"Times New Roman","Times",serif;
   --deskpat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%239298c8'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%239298c8'/%3E%3C/svg%3E");
@@ -41,19 +47,19 @@ kbd{font:10px/1.3 var(--mono);padding:0 3px;border:1px solid #000;border-radius:
 .ic.big{width:32px;height:32px}
 .ic *{vector-effect:non-scaling-stroke}
 /* neon colours the engine writes inline (agent and phase colours) are unreadable on white paper */
-[style*="color:#"]{color:var(--ink)!important}
+#crt [style*="color:#"]{color:var(--ink)!important}
 
 /* ---------- the screen ---------- */
 #screen{position:relative;min-width:1000px;min-height:620px;height:100vh;overflow:clip;background:#000}
 #screen::after{content:"";position:absolute;inset:0;z-index:9999;pointer-events:none;
   background:radial-gradient(circle at 7px 7px,transparent 6.5px,#000 7px) 0 0/7px 7px no-repeat,radial-gradient(circle at 0 7px,transparent 6.5px,#000 7px) 100% 0/7px 7px no-repeat,
              radial-gradient(circle at 7px 0,transparent 6.5px,#000 7px) 0 100%/7px 7px no-repeat,radial-gradient(circle at 0 0,transparent 6.5px,#000 7px) 100% 100%/7px 7px no-repeat}
-#menubar{position:absolute;left:0;right:0;top:0;height:21px;z-index:9000;display:flex;align-items:stretch;background:#fff;border-bottom:1px solid #000;font:bold 12px/20px var(--ui);user-select:none;padding:0 10px}
+#menubar{position:absolute;left:0;right:0;top:0;height:21px;z-index:9000;display:flex;align-items:stretch;background:#fff;border-bottom:1px solid #000;font:bold 13px/20px var(--ui);user-select:none;padding:0 10px}
 #menus{display:flex;flex:0 0 auto}
 .mi{all:unset;padding:0 9px;white-space:nowrap}
 .mi.logo{padding:0 10px 0 6px;font-size:14px}
 .mi[aria-expanded="true"]{background:#000;color:#fff}
-.menu{position:absolute;top:20px;z-index:9001;min-width:190px;background:#fff;border:1px solid #000;box-shadow:2px 2px 0 #000;padding:2px 0;font:bold 12px/18px var(--ui)}
+.menu{position:absolute;top:20px;z-index:9001;min-width:190px;background:#fff;border:1px solid #000;box-shadow:2px 2px 0 #000;padding:2px 0;font:bold 13px/18px var(--ui)}
 .menu button{all:unset;display:flex;gap:18px;justify-content:space-between;width:100%;box-sizing:border-box;padding:0 14px 0 20px;position:relative;white-space:nowrap}
 .menu button:hover,.menu button:focus-visible{background:#000;color:#fff;outline:0}
 .menu button[disabled]{color:#999;background:none}
@@ -62,13 +68,13 @@ kbd{font:10px/1.3 var(--mono);padding:0 3px;border:1px solid #000;border-radius:
 .menu .key{font-weight:normal}
 #banner{flex:1 1 0;min-width:0;display:flex;gap:6px;align-items:baseline;justify-content:center;white-space:nowrap;overflow:hidden;padding:0 12px;font:11px/20px var(--body)}
 #banner .k{font-weight:bold}
-#banner h3{font:bold 12px/20px var(--ui);overflow:hidden;text-overflow:ellipsis}
+#banner h3{font:bold 13px/20px var(--ui);overflow:hidden;text-overflow:ellipsis}
 #banner p{color:var(--muted)}
 body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility:hidden}
 .meters{display:flex;gap:11px;align-items:baseline;flex:0 0 auto;font-weight:normal}
 .mt{display:flex;gap:4px;align-items:baseline;white-space:nowrap}
 .mt .k{font:9px/20px var(--body);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
-.mt b{font:bold 12px/20px var(--ui);font-size:12px!important}
+.mt b{font:bold 13px/20px var(--ui);font-size:12px!important}
 .mt .bar{display:none}
 .mt.bump b{animation:inv .5s steps(2) 1}
 @keyframes inv{50%{background:#000;color:#fff}}
@@ -90,7 +96,7 @@ body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility
 #desktop:has(>.modal:not([hidden])) .win:not(.modal),#desktop:has(>.modal:not([hidden])) .dicons{pointer-events:none}
 .tb{flex:0 0 19px;height:19px;display:flex;align-items:center;gap:5px;padding:3px 2px;border-bottom:1px solid #000;background:#fff;user-select:none;touch-action:none}
 .win.active>.tb{background:repeating-linear-gradient(#fff 0 1px,#000 1px 2px) content-box,#fff}
-.wtt{margin:0 auto;padding:0 8px;background:#fff;font:bold 12px/13px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#777}
+.wtt{margin:0 auto;padding:0 8px;background:#fff;font:bold 13px/13px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#777}
 .win.active>.tb .wtt{color:#000}
 .cb,.zb,.nb{flex:0 0 13px;width:13px;height:13px;margin:0 6px;padding:0}
 .cb,.zb{all:unset;flex:0 0 11px;width:11px;height:11px;margin:0 6px;border:1px solid #000;background:#fff;box-shadow:0 0 0 1px #fff;box-sizing:border-box;visibility:hidden}
@@ -113,7 +119,7 @@ body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility
 #screen ::-webkit-scrollbar-button:single-button:horizontal:increment{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M8 4.5l-5-4v8z' fill='none' stroke='%23000'/%3E%3C/svg%3E")}
 
 /* ---------- controls ---------- */
-.btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:22px;padding:2px 14px;border:1px solid #000;border-radius:6px;background:#fff;font:bold 12px/1.25 var(--ui);text-align:center;user-select:none}
+.btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:22px;padding:2px 14px;border:1px solid #000;border-radius:6px;background:#fff;font:bold 13px/1.25 var(--ui);text-align:center;user-select:none}
 .btn:active{background:#000;color:#fff}
 .btn:focus-visible{outline:2px dotted #000;outline-offset:3px}
 .btn.primary{outline:2px solid #000;outline-offset:1px;border-radius:6px;margin:3px}
@@ -132,12 +138,12 @@ body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility
 .tag.ph{background:#000;color:#fff!important}
 .tag.cond{border-style:dashed!important}
 .hint{font-size:11px;line-height:1.35;color:var(--muted)}
-.owner{font:bold 10px/1.4 var(--ui);text-transform:uppercase;padding:0 5px;color:#fff;background:var(--oc,#000)}
+.owner{font:bold 10px/1.4 var(--sm);text-transform:uppercase;padding:0 5px;color:#fff;background:var(--oc,#000)}
 
 /* ---------- chat: the Conductor window ---------- */
 #con{flex:1;overflow-y:auto;padding:0 10px 14px 8px;display:flex;flex-direction:column;gap:11px;background:#fff;scroll-padding:40px 0 8px}
 .turn{position:sticky;top:0;z-index:2;margin:0 -10px 0 -8px;padding:3px 9px;min-height:22px;background:#eee;border-bottom:1px solid #000;font-size:11px;line-height:1.35;display:flex;gap:7px;align-items:baseline}
-.turn .who{font:bold 11px var(--ui);white-space:nowrap}
+.turn .who{font:bold 11px var(--sm);white-space:nowrap}
 .turn .tt{flex:1;min-width:0}
 #con>*{flex-shrink:0}      /* a long conversation scrolls; it must not squash the status strip or the messages */
 .turn.me{background:#000;color:#fff}
@@ -150,28 +156,28 @@ body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility
 #con .card.mine::after{left:-6px;border-width:2px}
 #con .card.flash{animation:flash .5s steps(2) 3}
 @keyframes flash{50%{background:#fff}}
-.ck{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.03em;display:flex;justify-content:space-between;gap:8px;align-items:center;color:#333}
-.ck .mono{font:bold 10px var(--ui)}
+.ck{font:bold 10px/1.3 var(--sm);text-transform:uppercase;letter-spacing:.03em;display:flex;justify-content:space-between;gap:8px;align-items:center;color:#333}
+.ck .mono{font:bold 10px var(--sm)}
 .ck>span:last-child{flex:0 0 auto;white-space:nowrap}
 .q{font:bold 13px/1.35 var(--ui)}
 .opts,.apick{display:flex;flex-direction:column;gap:5px}
 .opt,.ag{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:flex-start;padding:4px 9px;border:1px solid #000;border-radius:10px;background:#fff;font-size:12px;line-height:1.35}
 .opt:hover:not([disabled]),.ag:hover:not([disabled]),.opt:focus-visible,.ag:focus-visible{background:#000;color:#fff;outline:0}
-.opt b{font:bold 11px/1.5 var(--ui);min-width:12px}
+.opt b{font:bold 11px/1.5 var(--sm);min-width:12px}
 .opt[disabled]{border-style:dotted;color:#555}
 .opt.picked{background:#000!important;color:#fff!important;border-style:solid}
 .opt.dim{color:#888;border-color:#aaa;border-style:solid}
 .ag{align-items:center}
 .ag .av,.msg .av,.act .ah .av,.bud .av{flex:0 0 auto;display:grid;place-items:center;border:1px solid #000;background:var(--ac,#fff);color:#000;font:bold 9px/1 var(--mono)}
 .ag .av{width:27px;height:27px}
-.ag span{display:flex;flex-direction:column;font:bold 12px/1.3 var(--ui)}
+.ag span{display:flex;flex-direction:column;font:bold 13px/1.3 var(--ui)}
 .ag small{font:11px/1.3 var(--body);font-weight:normal}
 .ag:hover:not([disabled]) kbd{background:#fff;color:#000}
 .ag.right{border-width:2px}.ag.right::after{content:"✓";font-weight:bold;margin-left:6px}
 .ag.wrong{text-decoration:line-through;color:#888;border-color:#aaa}
 .ag[disabled]:not(.right):not(.wrong){color:#888;border-color:#aaa}
 .finding{border:1px solid #000;border-left:5px solid var(--fc,var(--warn));padding:4px 8px;background:#fff;font-size:12px;line-height:1.35;display:flex;flex-direction:column;gap:2px}
-.finding .fh{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.03em;color:var(--fc,var(--warn))}
+.finding .fh{font:bold 10px/1.3 var(--sm);text-transform:uppercase;letter-spacing:.03em;color:var(--fc,var(--warn))}
 .finding .src{font:10px/1.3 var(--mono);color:var(--muted)}
 .finding.ok{--fc:var(--good)}
 .steps{display:flex;flex-wrap:wrap;gap:1px 9px}
@@ -227,13 +233,13 @@ body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility
 
 /* ---------- buddies ---------- */
 #buds{flex:1;overflow-y:auto;padding:4px 0 8px;background:#fff}
-.bgrp{font:bold 10px/1.6 var(--ui);text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-bottom:1px dotted #000;margin-bottom:2px}
+.bgrp{font:bold 10px/1.6 var(--sm);text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-bottom:1px dotted #000;margin-bottom:2px}
 .bcols{columns:2;column-gap:0}
 .bud{all:unset;box-sizing:border-box;display:flex;gap:6px;align-items:center;width:100%;padding:1px 8px;font-size:11px;line-height:1.25;break-inside:avoid;color:#888}
 .bud .av{width:21px;height:17px;font-size:8px;filter:grayscale(1);opacity:.55}
 .bud .av.h{border-radius:50%;width:17px;color:#fff}
 .bud span{display:flex;flex-direction:column;min-width:0}
-.bud b{font:bold 11px/1.25 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bud b{font:bold 11px/1.25 var(--sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bud small{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bud.on{color:#000}.bud.on .av{filter:none;opacity:1}
 .bud.cand{color:#000;background:#fff}.bud.cand .av{filter:none;opacity:1;animation:blink .8s steps(2) infinite}
@@ -253,7 +259,7 @@ body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility
 .frow .kd,.frow .rv{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .frow.file.unread .nm b{font-weight:bold}
 .frow.file.unread .nm b::after{content:" •"}
-.frow .nw{font:bold 9px/1.3 var(--ui);border:1px solid #000;padding:0 3px;margin-left:2px}
+.frow .nw{font:bold 9px/1.3 var(--sm);border:1px solid #000;padding:0 3px;margin-left:2px}
 .frow.sel .nm b{background:#000;color:#fff}
 .frow.sel .ic{filter:invert(1)}
 .frow:focus-visible{outline:0}.frow:focus-visible .nm b{outline:1px dotted #000}
@@ -269,10 +275,10 @@ body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility
 .doc li{margin:1px 0}
 .doc table{border-collapse:collapse;width:100%;font-size:11px;margin:3px 0 8px}
 .doc td,.doc th{border:1px solid #000;padding:2px 5px;text-align:left;vertical-align:top}
-.doc th{font:bold 10px var(--ui);text-transform:uppercase;background:#eee}
+.doc th{font:bold 10px var(--sm);text-transform:uppercase;background:#eee}
 .doc pre{font:11px/1.45 var(--mono);border:1px solid #000;padding:6px 8px;white-space:pre-wrap;overflow-x:auto;margin:3px 0 8px;background:#fff}
 .doc .c{color:var(--dim)} .doc .k{color:var(--mag)} .doc .s{color:var(--lime)}
-.doc .rev{font:bold 10px var(--ui);color:var(--warn)}
+.doc .rev{font:bold 10px var(--sm);color:var(--warn)}
 
 /* ---------- console ---------- */
 .term{flex:1;min-height:0;display:flex;flex-direction:column;background:#000;color:#ddd;font:11px/1.45 var(--mono);
@@ -301,7 +307,7 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .bloc span{white-space:nowrap}
 .bloc output{flex:1;min-width:0;font:11px/1.5 var(--mono);padding:0 5px;border:1px solid #000;background:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 1px 1px 0 #999}
 .tabs{flex:0 0 auto;display:flex;gap:0;padding:4px 8px 0;border-bottom:1px solid #000;background:#ddd}
-.tab{all:unset;box-sizing:border-box;padding:1px 12px 2px;margin:0 -1px -1px 0;border:1px solid #000;border-radius:5px 5px 0 0;background:#bbb;font:bold 11px/1.4 var(--ui)}
+.tab{all:unset;box-sizing:border-box;padding:1px 12px 2px;margin:0 -1px -1px 0;border:1px solid #000;border-radius:5px 5px 0 0;background:#bbb;font:bold 11px/1.4 var(--sm)}
 .tab[aria-selected="true"]{background:#c0c0c0;border-bottom-color:#c0c0c0}
 .tab[hidden]{display:none}
 .bpage{flex:1;overflow:auto;background:#c0c0c0;color:#000;font:15px/1.35 var(--serif);padding:10px 30px 30px 14px;user-select:text;-webkit-font-smoothing:auto}
@@ -319,7 +325,7 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .bpage .hint{font:13px/1.3 var(--serif);color:#333}
 .bpage .mono,.bpage code{font-family:"Courier New",monospace;font-size:13px}
 .bpage kbd{font-size:11px}
-.bpage .btn{font:bold 12px/1.25 var(--ui);-webkit-font-smoothing:none}
+.bpage .btn{font:bold 13px/1.25 var(--ui);-webkit-font-smoothing:none}
 .bpage .tag{font:11px/1.3 "Courier New",monospace;text-transform:none;background:#c0c0c0}
 .bpage .tag.ph{background:#000}
 .kick{font:bold 12px/1.3 "Courier New",monospace;text-transform:uppercase;letter-spacing:.06em}
@@ -334,9 +340,10 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .profs,.roles{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:0 18px}
 #title .pc,#title .rc{all:unset;box-sizing:border-box;display:block;position:relative;padding:5px 6px 6px 26px;border-top:1px solid #808080;font:13px/1.3 var(--serif);cursor:pointer}
 #title .pc::before,#title .rc::before{content:"";position:absolute;left:5px;top:8px;width:11px;height:11px;border:1px solid #000;border-radius:50%;background:#fff}
-.pc[aria-checked="true"]::before,.rc[aria-checked="true"]::before{background:radial-gradient(circle,#000 0 3px,#fff 3.5px)}
-.pc[aria-checked="true"],.rc[aria-checked="true"]{background:#fff;outline:1px solid #000}
-.pc:focus-visible,.rc:focus-visible{outline:2px dotted #000;outline-offset:-2px}
+/* these carry #title so they outrank the reset above: the chosen row is white, boxed, and its dot is filled */
+#title .pc:focus-visible,#title .rc:focus-visible{outline:2px dotted #000;outline-offset:-2px}
+#title .pc[aria-checked="true"]::before,#title .rc[aria-checked="true"]::before{background:radial-gradient(circle,#000 0 3px,#fff 3.5px)}
+#title .pc[aria-checked="true"],#title .rc[aria-checked="true"]{background:#fff;outline:2px solid #000;outline-offset:-2px}
 .pc .pt{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 8px;align-items:baseline}
 .pc .pt b,.rc b{font:bold 15px/1.2 var(--serif);color:#0000ee;text-decoration:underline}
 .pc .pt b .tag{text-decoration:none;display:inline-block;margin-left:4px;color:#000!important}
@@ -349,7 +356,7 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .pc .mini i{width:5px;height:8px;border:1px solid #808080}
 .pc .mini i.on{background:#000;border-color:#000}
 .pc code{display:block}
-.rc .ava{float:right;width:26px;height:26px;border:1px solid #000;border-radius:50%;display:grid;place-items:center;background:var(--rc);color:#fff;font:bold 11px var(--ui)}
+.rc .ava{float:right;width:26px;height:26px;border:1px solid #000;border-radius:50%;display:grid;place-items:center;background:var(--rc);color:#fff;font:bold 11px var(--sm)}
 .rc .rt{display:block;font:11px "Courier New",monospace;text-transform:uppercase}
 .otherprof{font-size:12px;font-style:italic;margin:6px 0}
 .comp{display:flex;flex-direction:column;gap:5px;margin-top:6px}
@@ -398,21 +405,21 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .cinebox,.dlg{position:relative;width:min(470px,calc(100% - 40px));padding:18px 22px 16px 74px;background:#fff;border:1px solid #000;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #000,2px 2px 0 #000;display:flex;flex-direction:column;gap:6px;min-height:92px}
 .cinebox .diamond,.dlg .dicn{position:absolute;left:24px;top:22px;width:30px;height:30px;border:2px solid #000;background:var(--cc,#fff);transform:rotate(45deg)}
 .cinebox .diamond::after,.dlg .dicn::after{content:"!";position:absolute;inset:0;display:grid;place-items:center;transform:rotate(-45deg);font:bold 18px var(--ui);color:#000;background:#fff;margin:5px;border-radius:50%}
-.cinebox .k{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.05em}
+.cinebox .k{font:bold 10px/1.3 var(--sm);text-transform:uppercase;letter-spacing:.05em}
 .cinebox h2,.dlg h2{font:bold 15px/1.25 var(--ui)}
 .cinebox p,.dlg p{font-size:12px;line-height:1.4}
 .cinebox .checks{font:11px/1.6 var(--mono);border:1px solid #000;padding:4px 8px;margin-top:2px}
 .cinebox .checks .ok::before{content:"✓ "}.cinebox .checks .wa::before{content:"! "}
 .dlgwrap{position:absolute;inset:0;z-index:8500;display:grid;place-items:center}
 .dlg .row{justify-content:flex-end;margin-top:8px;gap:14px}
-.toasts{position:absolute;left:12px;bottom:12px;z-index:8800;display:flex;flex-direction:column-reverse;gap:6px;width:270px;pointer-events:none}
+.toasts{position:absolute;left:12px;bottom:12px;z-index:9400;display:flex;flex-direction:column-reverse;gap:6px;width:270px;pointer-events:none}
 .toast{padding:4px 9px 5px;background:#fff;border:1px solid #000;box-shadow:2px 2px 0 #000;font-size:11px;line-height:1.35}
 .toast.out{display:none}
 .toast .co{display:block;color:var(--muted)}
-.toast b.p,.toast b.m,.toast b.z{font:bold 12px var(--ui);margin-right:4px;padding:0 4px;border:1px solid #000}
+.toast b.p,.toast b.m,.toast b.z{font:bold 13px var(--ui);margin-right:4px;padding:0 4px;border:1px solid #000}
 .toast b.m{background:#000;color:#fff}
 .toast.badge{border-width:2px}
-.floater{position:fixed;z-index:8900;pointer-events:none;font:bold 16px var(--ui);color:#000!important;background:#fff;border:1px solid #000;padding:0 4px;animation:float 1.1s steps(8) forwards}
+.floater{position:fixed;z-index:9450;pointer-events:none;font:bold 16px var(--ui);color:#000!important;background:#fff;border:1px solid #000;padding:0 4px;animation:float 1.1s steps(8) forwards}
 @keyframes float{to{transform:translateY(-44px);opacity:0}}
 #splash{position:absolute;inset:0;z-index:9500;display:grid;place-items:center;background:#a9afd9 var(--deskpat)}
 #splash div{padding:22px 46px 20px;background:#fff;border:1px solid #000;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #000,2px 2px 0 #000;text-align:center;font:bold 14px/1.5 var(--ui)}
@@ -431,13 +438,13 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .bhead p{font-size:11px;color:var(--muted)}
 .bhead .tag{background:#000;color:#fff!important;font-weight:bold}
 .budget{margin-left:auto;min-width:240px;display:flex;flex-direction:column;gap:3px}
-.budget .l{display:flex;justify-content:space-between;font:bold 10px var(--ui);text-transform:uppercase}
+.budget .l{display:flex;justify-content:space-between;font:bold 10px var(--sm);text-transform:uppercase}
 .budget .l b{font-size:13px}
 .budget .t{height:13px;border:1px solid #000;background:#fff}
 .budget .t i{display:block;height:100%;background:#000;transition:width .25s linear}
 .bgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px;align-items:start}
 .bpanel,.dpanel{padding:8px 10px;display:flex;flex-direction:column;gap:8px}
-.bpanel h3,.dpanel h3{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #000;padding-bottom:2px}
+.bpanel h3,.dpanel h3{font:bold 10px/1.3 var(--sm);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #000;padding-bottom:2px}
 .wave{display:flex;flex-direction:column;gap:5px}
 .wave .wn{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .wave .wn b{font:bold 16px var(--ui)}
@@ -459,7 +466,7 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .act:active:not(.locked){background:#ddd}
 .act .ah{display:flex;gap:6px;align-items:center}
 .act .ah .av{width:24px;height:20px;color:#fff;font-size:8px}
-.act b{font:bold 12px/1.2 var(--ui)}
+.act b{font:bold 13px/1.2 var(--ui)}
 .act small{font-size:11px;line-height:1.3}
 .act .src{font:10px var(--mono);color:var(--muted)}
 .act .cd{position:absolute;inset:0;background:#000 var(--dither);opacity:.45;transform-origin:left;pointer-events:none}
@@ -468,7 +475,7 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .act.locked{color:#888;border-style:dashed;border-color:#888}
 .act.locked .av{filter:grayscale(1);opacity:.5}
 .act.rec{border-width:3px}
-.act.rec::after{content:"RECOMMENDED";position:absolute;bottom:6px;right:7px;font:bold 9px var(--ui);background:#000;color:#fff;padding:0 4px}
+.act.rec::after{content:"RECOMMENDED";position:absolute;bottom:6px;right:7px;font:bold 9px var(--sm);background:#000;color:#fff;padding:0 4px}
 .blog{font:11px/1.45 var(--mono);max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;border:1px solid #000;padding:3px 6px}
 .blog .g{color:var(--good)} .blog .r{color:var(--bad);font-weight:bold} .blog .y{color:var(--warn)} .blog .c{color:var(--accent)}
 .loadout{display:flex;flex-direction:column;gap:4px;font-size:12px}
@@ -482,7 +489,7 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .chain div{display:grid;grid-template-columns:54px 1fr;gap:8px}
 .chain i{font:bold 10px/1.7 var(--mono);font-style:normal}
 .dhero{padding:12px 14px;display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap}
-.dhero .kick{font:bold 10px var(--ui)}
+.dhero .kick{font:bold 10px var(--sm)}
 .dhero .big{font:bold 64px/.95 var(--ui)}
 .dhero .rk{font:bold 20px/1.2 var(--ui)}
 .dhero p{font-size:12px}
@@ -496,14 +503,135 @@ body.busy .throb{animation:throb .6s steps(2) infinite}
 .bdg .ic{width:auto;height:auto;font-size:17px;line-height:1;filter:grayscale(1);opacity:.4}
 .bdg.on{border:1px solid #000;color:#000}
 .bdg.on .ic{filter:none;opacity:1}
-.bdg b{display:block;font:bold 11px var(--ui)}
+.bdg b{display:block;font:bold 11px var(--sm)}
 .v1v2{width:100%;border-collapse:collapse;font-size:11px}
 .v1v2 td,.v1v2 th{border-bottom:1px dotted #000;padding:3px 5px;text-align:left;vertical-align:top}
-.v1v2 th{font:bold 10px var(--ui);text-transform:uppercase}
+.v1v2 th{font:bold 10px var(--sm);text-transform:uppercase}
 .plog{font-size:11px;max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .plog div{display:grid;grid-template-columns:44px 1fr;gap:6px}
 .plog b{font:bold 11px var(--mono);text-align:right}
 body.rm *,body.rm *::before,body.rm *::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+
+/* =====================================================================
+   The incident breaks the desktop. While the page is ringing the screen glitches;
+   then it warps away and the 3D office (the same one the office edition uses) takes over,
+   in a modern look on purpose. When the incident ends the old screen powers back on.
+   ===================================================================== */
+#crt{position:absolute;inset:0;transform-origin:50% 52%;will-change:transform,filter}
+body.glitch #crt{animation:gjit .3s steps(3) infinite}
+body.glitch .win{animation:gwin .5s steps(2) infinite}
+body.glitch .win:nth-of-type(2n){animation-duration:.37s;animation-direction:reverse}
+body.glitch #menubar{animation:ginv .9s steps(1) infinite}
+@keyframes gjit{33%{transform:translate(2px,-1px) skewX(.3deg)}66%{transform:translate(-3px,1px)}}
+@keyframes gwin{50%{transform:translate(2px,1px);box-shadow:-4px 0 0 #f0f,4px 0 0 #0ff}}
+@keyframes ginv{0%,84%{filter:none}85%,100%{filter:invert(1)}}
+body.warping #crt{z-index:8700;pointer-events:none}
+#crt.poweron{animation:pon .62s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pon{0%{transform:scale(1.2,.004);filter:brightness(9)}45%{transform:scale(1,.004);filter:brightness(9)}75%{transform:scale(1,1.03);filter:brightness(2.4)}100%{transform:none;filter:none}}
+#flash{position:absolute;inset:0;z-index:9300;pointer-events:none;background:#fff;opacity:0}
+#flash.go{animation:fl .7s ease-out both}
+@keyframes fl{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+#neo{position:absolute;inset:0;z-index:8600;overflow:hidden;background:#060A13;color:#E7EEFF;font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased;transition:opacity .45s;
+  --bg:#060A13;--panel:rgba(13,20,36,.74);--panel2:rgba(20,30,52,.82);--solid:#0E1628;--line:rgba(130,170,255,.14);--line2:rgba(130,170,255,.28);
+  --ink:#E7EEFF;--muted:#8E9BB8;--dim:#5A6784;--cyan:#38E1FF;--mag:#FF4FD8;--lime:#8CFF6B;--amber:#FFB547;--red:#FF4D5E;--violet:#A98BFF;
+  --accent:var(--cyan);--good:#5BF08F;--bad:#FF5A6A;--warn:#FFC24D;--po:#FF6B8A;--eng:#4DA3FF;--pm:#2EE6C5;--ops:#FFB547;--sec:#B784FF;--onfill:#061019;
+  --display:system-ui,-apple-system,"Segoe UI",sans-serif;--body:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--role:var(--cyan)}
+#neo[hidden]{display:none}
+#neo.out{opacity:0}
+body[data-role="po"] #neo{--role:var(--po)} body[data-role="eng"] #neo{--role:var(--eng)} body[data-role="pm"] #neo{--role:var(--pm)} body[data-role="ops"] #neo{--role:var(--ops)} body[data-role="sec"] #neo{--role:var(--sec)}
+:root.neo{--red:#FF4D5E;--amber:#FFB547;--cyan:#38E1FF}      /* the incident's charts read their colours from the root */
+#neo>canvas{position:absolute;inset:0;width:100%;height:100%;display:block;transform-origin:50% 55%}
+#neo .vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 60%,rgba(0,0,0,.5))}
+#neo #boss{position:absolute;inset:0;left:0!important;top:0!important;width:auto!important;height:auto!important;min-width:0;min-height:0;z-index:3!important;border:0;box-shadow:none;
+  background:radial-gradient(ellipse at 50% 45%,transparent 28%,rgba(6,10,19,.72) 88%);padding:12px;overflow-y:auto;cursor:grab}
+#neo #boss[hidden]{display:none}
+#neo #boss>.tb,#neo #boss>.grow{display:none}
+#neo #boss>.wb{flex:1 0 auto;overflow:visible;background:none}
+#neo .bwrap{padding:0;gap:10px;min-height:100%}
+#neo:not(.on) .bwrap{opacity:0}
+#neo.on .bhead{animation:nin .5s cubic-bezier(.2,.9,.3,1.2) both}
+#neo.on .bgrid>section:first-child{animation:ninl .55s .12s cubic-bezier(.2,.9,.3,1.1) both}
+#neo.on .bgrid>section:nth-child(2){animation:ninr .55s .2s cubic-bezier(.2,.9,.3,1.1) both}
+@keyframes nin{from{opacity:0;transform:translateY(-40px) scale(.96)}}
+@keyframes ninl{from{opacity:0;transform:translateX(-90px)}}
+@keyframes ninr{from{opacity:0;transform:translateX(90px)}}
+#neo h1,#neo h2,#neo h3{font-family:var(--display);letter-spacing:-.01em}
+#neo kbd{font:600 10px var(--mono);padding:0 4px;border:1px solid var(--line2);border-radius:4px;background:var(--panel2);color:var(--ink)}
+#neo .glass{background:var(--panel);backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);border:1px solid var(--line);border-radius:14px;box-shadow:0 0 0 1px var(--line),0 10px 40px rgba(0,0,0,.45)}
+#neo .tag{font:600 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border-radius:999px;border:1px solid currentColor!important;background:none}
+#neo .bhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;align-self:center;width:min(980px,100%);border-color:color-mix(in srgb,var(--red) 50%,transparent)!important;cursor:auto}
+#neo .bhead h2{font-size:22px;color:var(--ink)!important}
+#neo .bhead p{color:var(--muted);font-size:13px}
+#neo .bhead .tag{background:none;font-weight:700}
+#neo .budget{margin-left:auto;min-width:260px;gap:5px}
+#neo .budget .l{font:600 10.5px var(--mono);letter-spacing:.12em;color:var(--muted)}
+#neo .budget .l b{color:var(--ink);font-size:14px;letter-spacing:0}
+#neo .budget .t{height:12px;border-radius:6px;background:var(--line);overflow:hidden;border:1px solid var(--line2)}
+#neo .budget .t i{background:linear-gradient(90deg,var(--red),var(--amber),var(--good));background-size:300px 100%}
+#neo .bgrid{grid-template-columns:minmax(300px,410px) minmax(0,1fr) minmax(300px,410px);gap:10px;align-items:start}
+#neo .bgrid>section:nth-child(2){grid-column:3}
+#neo .bpanel{padding:12px 14px;gap:10px;cursor:auto}
+#neo .bpanel h3{font:600 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);border:0;padding:0}
+#neo .wave .wn b{font:700 20px var(--display)}
+#neo .wave .wn span{font:600 11px var(--mono);color:var(--muted)}
+#neo .hp{height:16px;border-radius:8px;background:var(--line);overflow:hidden;border:1px solid color-mix(in srgb,var(--red) 40%,transparent)}
+#neo .hp i{background:linear-gradient(90deg,#ff2d55,#ff7a45);box-shadow:0 0 18px rgba(255,45,85,.6)}
+#neo .hp em{font:700 10.5px var(--mono);font-style:normal;color:#fff;text-shadow:0 1px 2px #000}
+#neo .wdesc{font-size:13.5px;color:var(--muted)}
+#neo .wdesc b{color:var(--ink)}
+#neo .rc2{font:500 12.5px var(--mono);padding:8px 10px;border-radius:8px;border:1px dashed var(--line2);color:var(--muted)}
+#neo .rc2.known{border:1px solid var(--accent);color:var(--ink)}
+#neo .charts{gap:8px}
+#neo .chart{border:1px solid var(--line);border-radius:10px;padding:8px;gap:4px;background:rgba(6,10,19,.4)}
+#neo .chart .l{font:600 10px var(--mono);letter-spacing:.08em;color:var(--muted)}
+#neo .chart .l b{font-size:13px;color:var(--ink);letter-spacing:0}
+#neo .acts{gap:8px}
+#neo .act{all:unset;box-sizing:border-box;cursor:pointer;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:4px;padding:9px 10px;border-radius:11px;border:1px solid var(--line2);background:var(--panel2);transition:transform .1s,border-color .15s}
+#neo .act:hover{border-color:var(--ac);box-shadow:none}
+#neo .act:active{transform:scale(.98);background:var(--panel2)}
+#neo .act:focus-visible{outline:2px solid var(--ac)}
+#neo .act .ah{display:flex;gap:7px;align-items:center}
+#neo .act .ah .av{width:24px;height:24px;border:0;border-radius:6px;display:grid;place-items:center;font:700 8.5px var(--mono);color:var(--onfill);background:var(--ac);filter:none;opacity:1}
+#neo .act b{font:600 13px/1.2 var(--display)}
+#neo .act small{font-size:11.5px;color:var(--muted);line-height:1.35}
+#neo .act .src{font:500 10px var(--mono);color:var(--dim)}
+#neo .act .cd{position:absolute;inset:0;background:rgba(6,10,19,.7);opacity:1;transform-origin:left;pointer-events:none}
+#neo .act .cp{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--ac);box-shadow:0 0 10px var(--ac)}
+#neo .act.casting{border-color:var(--ac);box-shadow:0 0 18px color-mix(in srgb,var(--ac) 45%,transparent)}
+#neo .act.locked{cursor:not-allowed;opacity:.42;border-style:dashed;color:inherit}
+#neo .act.rec{border:1px solid var(--good);box-shadow:0 0 0 1px var(--good),0 0 16px color-mix(in srgb,var(--good) 35%,transparent)}
+#neo .act.rec::after{content:"RECOMMENDED";position:absolute;bottom:7px;right:8px;font:700 8.5px var(--mono);letter-spacing:.08em;color:var(--onfill);background:var(--good);padding:1px 6px;border-radius:5px}
+#neo .blog{font:12px/1.5 var(--mono);color:var(--muted);max-height:160px;border:0;padding:0}
+#neo .blog .r{font-weight:400}
+#neo .lo i{font:700 11px/1.5 var(--mono);min-width:44px}
+#neo .lo.on i{color:var(--good)} #neo .lo.off i{color:var(--bad)} #neo .lo.off{color:var(--muted)}
+#neo .lo span small{color:var(--dim);font:500 10.5px var(--mono)}
+#neo .loadout{font-size:12.5px}
+#neo .relax{font-size:12.5px;color:var(--muted)}
+#neo .relax input{accent-color:var(--accent);width:16px;height:16px}
+#neo .chain{gap:7px;font-size:13px}
+#neo .chain i{font:700 11px/1.6 var(--mono);font-style:normal}
+#neo .btn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:10px;font:600 13.5px/1.25 var(--body);text-align:center;border:1px solid var(--line2);background:var(--panel2)}
+#neo .btn.primary{background:linear-gradient(135deg,var(--role),color-mix(in srgb,var(--role) 60%,var(--mag)));color:var(--onfill);border-color:transparent;box-shadow:0 0 20px color-mix(in srgb,var(--role) 35%,transparent);outline:0;margin:0}
+#neo .btn.primary kbd{color:#061019;background:rgba(255,255,255,.92);border-color:transparent}
+#neo .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#neo .mono{font-family:var(--mono)}
+@media (max-width:1100px){#neo #boss{background:rgba(6,10,19,.84)}#neo .bgrid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}#neo .bgrid>section:nth-child(2){grid-column:auto}}
+/* the office's own labels over the 3D scene */
+#o3d{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.o3l{position:absolute;left:0;top:0;display:none;flex-direction:column;align-items:center;gap:2px;width:0;white-space:nowrap;--c:var(--accent)}
+.o3l.on{display:flex}
+.o3l>*{transform:translateY(-100%)}
+.o3l .nm{font:600 10.5px var(--body);color:var(--ink);background:rgba(6,10,19,.78);border:1px solid color-mix(in srgb,var(--c) 55%,transparent);padding:1px 7px;border-radius:99px;margin-top:-2px}
+.o3l .tg{font:700 8.5px var(--mono);letter-spacing:.12em;color:var(--c);text-shadow:0 0 8px var(--c)}
+.o3l .tg:empty{display:none}
+.o3l .bb{display:none;max-width:230px;white-space:normal;text-align:center;font:500 11.5px/1.3 var(--body);color:var(--ink);background:var(--panel2);border:1px solid var(--c);border-radius:11px;padding:5px 9px;margin-bottom:3px;width:max-content}
+.o3l.bub .bb{display:block}
+.o3l.hum .nm{border-style:dashed}
+:root.neo .toast{background:#0E1628;color:#E7EEFF;border-color:#38E1FF;box-shadow:0 0 0 3px rgba(56,225,255,.15),0 10px 30px rgba(0,0,0,.6);border-radius:10px;font:13px/1.4 system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+:root.neo .toast b.p,:root.neo .toast b.m,:root.neo .toast b.z{font:700 13px ui-monospace,Menlo,monospace;border-color:#38E1FF;border-radius:6px;background:none;color:#38E1FF}
+:root.neo .toast .co{color:#8E9BB8}
+:root.neo .floater{background:none;border:0;color:#5BF08F!important;font:700 18px ui-monospace,Menlo,monospace;text-shadow:0 0 12px currentColor}
 </style>
 </head>
 <body data-role="po" data-st="title">
@@ -517,6 +645,7 @@ body.rm *,body.rm *::before,body.rm *::after{animation-duration:.001s!important;
   <symbol id="i-mac" viewBox="0 0 16 16"><path d="M2.5 1.5h11v11h-11z" fill="#fff" stroke="#000"/><path d="M4.5 3.5h7v5h-7z" fill="#ccccff" stroke="#000"/><path d="M3.5 12.5v2h9v-2M9 10.5h2.5" fill="none" stroke="#000"/></symbol>
 </svg>
 <div id="screen">
+ <div id="crt">
   <div id="menubar">
     <nav id="menus" aria-label="Menu bar">
       <button class="mi logo" type="button" data-m="sys" aria-haspopup="true" aria-label="System menu">❖</button>
@@ -569,6 +698,7 @@ body.rm *,body.rm *::before,body.rm *::after{animation-duration:.001s!important;
           <p class="hint">Keys: <kbd>1</kbd>–<kbd>4</kbd> pick a reply · <kbd>A</kbd> approve · <kbd>R</kbd> request changes · <kbd>Enter</kbd> continue after a teammate's stage · <kbd>Space</kbd> skip waiting · <kbd>M</kbd> sound on/off. Windows drag by their title bars and resize from the bottom-right corner.</p>
           <hr>
           <p class="foot">Illustrative scenario: the product, people and figures are made up for training. Stage names, lead, support and reviewer agents, sensors and scope switches are taken from <a href="https://github.com/awslabs/aidlc-workflows" target="_blank" rel="noopener">awslabs/aidlc-workflows</a> release 2.11.4. Scoring, gate ownership and the incident are game rules. This is an unofficial training game, not affiliated with or endorsed by AWS. The desktop is a made-up operating system and is not affiliated with any real one. <a href="https://github.com/kwe/aidlc-office" target="_blank" rel="noopener">Source on GitHub</a>.</p>
+          <p class="foot">Prefer a 3D office to an old desktop? <a href="https://kwevans.dev/aidlc-office/" rel="noopener">Play the office edition</a>.</p>
         </div>
         <div class="setup">
           <h1>Mission setup</h1>
@@ -640,8 +770,15 @@ body.rm *,body.rm *::before,body.rm *::after{animation-duration:.001s!important;
     <section class="win modal" id="debrief" hidden data-title="Mission Debrief" data-close="0" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="dwrap" id="dwrap"></div></section>
     <!-- ===== PHASE CHECKS AND OTHER ANNOUNCEMENTS ===== -->
     <div id="cine" hidden aria-live="assertive"><div class="cinebox" id="cinebox"></div></div>
-    <div class="toasts" id="toasts" aria-live="polite"></div>
   </div>
+ </div>
+  <!-- ===== THE INCIDENT BREAKS THE DESKTOP: the screen warps away and the 3D office takes over ===== -->
+  <div id="neo" hidden><canvas id="net" aria-hidden="true"></canvas><div class="vig" aria-hidden="true"></div></div>
+  <div id="flash" aria-hidden="true"></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="warp" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+    <feTurbulence id="warpT" type="fractalNoise" baseFrequency="0.008 0.014" numOctaves="2" seed="4" result="n"/>
+    <feDisplacementMap id="warpD" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
   <div id="splash"><div><svg class="ic big"><use href="#i-mac"/></svg><br>Welcome to Aegle System 7<small>a made-up operating system</small></div></div>
 </div>
 
@@ -654,6 +791,8 @@ body.rm *,body.rm *::before,body.rm *::after{animation-duration:.001s!important;
   <button id="tourBtn" type="button"></button><button id="tourBtn2" type="button"></button>
 </div>
 
+<script>"use strict";/*__OFFICE_JS__*/</script>
+<script id="glbdata" type="application/octet-stream">__OFFICE_GLB__</script>
 <script>
 "use strict";
 /* =====================================================================
@@ -765,12 +904,15 @@ function page(n){
   $('#p-map').hidden=n!=='map';$('#p-intel').hidden=n!=='intel';
   $('#loc').textContent='http://intranet.aegle.example/'+(n==='setup'?($('#title').classList.contains('attract')?'':'aidlc/setup.html'):n==='map'?'aidlc/lifecycle.html':'aidlc/intel.html');
 }
-new MutationObserver(ms=>{
+const watch=new MutationObserver(ms=>{
   state();
   for(const m of ms){const t=m.target;
     if(m.attributeName==='hidden'&&t.classList.contains('win')&&!t.hidden)show(t);
+    if(m.attributeName==='hidden'&&t.id==='boss')t.hidden?FX.warpOut():FX.warpIn();
     if(m.attributeName==='class'&&t.id==='title'&&!t.hidden)page('setup')}
-}).observe(desk,{attributes:true,attributeFilter:['hidden','class'],subtree:true});
+});
+watch.observe(desk,{attributes:true,attributeFilter:['hidden','class'],subtree:true});
+watch.observe($('#boss'),{attributes:true,attributeFilter:['hidden']});      // it leaves the desktop for the 3D scene, and must still be heard
 /* anything that needs the player's answer brings the Conductor window to the front */
 new MutationObserver(ms=>{if(ms.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&n.classList.contains('mine'))))show($('#w-con'))}).observe($('#con'),{childList:true});
 /* the browser's throbber spins while agents are working */
@@ -868,13 +1010,126 @@ function buddies(){
 }
 $('#buds').addEventListener('click',e=>{const b=e.target.closest('.bud.cand');if(b&&cand)cand.cb(b.dataset.k)});
 function pulse(k){const b=$(`#buds [data-k="${k}"]`);if(!b)return;b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),260)}
-const net={
+const own={
   setStage(o){stage=o;buddies()},
   gate(s,role){gateRole=s===1?role:null;buddies()},
   humanMood(k,m){moods[k]=m;buddies()},
-  pick(keys,cb){cand=keys?{keys,cb}:null;buddies()},
   pulse,
 };
+
+/* ---------------- the incident: the desktop glitches, warps away, and the 3D office takes over ----------------
+   The office is the one the office edition uses. It is built when a mission starts and follows the whole run,
+   but it only draws while the incident is on screen. Without WebGL the incident stays in its desktop window. */
+const FX=(()=>{
+  const crt=$('#crt'),neoEl=$('#neo'),D=$('#warpD'),Tn=$('#warpT'),root=document.documentElement;
+  let off=null,tried=false,live=false,neo=false,glI=0,raf=0,seq=0;
+  const motion=()=>typeof S!=='undefined'&&S.motion;
+  function zone(){     // the camera frames the gap between the two incident panels
+    const g=neo&&$('#boss .bgrid');
+    if(g&&g.children.length>1){const a=g.children[0].getBoundingClientRect(),b=g.children[1].getBoundingClientRect();if(b.left-a.right>200)return{x:a.right,y:60,w:b.left-a.right,h:innerHeight-60}}
+    return null;
+  }
+  function board(){
+    const st=ST[S.cur];
+    return{mode:'game',color:st?PHASES[st.ph].c:'#38E1FF',kicker:st?`${PHASES[st.ph].n} · stage ${st.id} · ${PROFILES[S.prof].n} scope`:'',title:st?st.n:'AI-DLC',clock:clockStr(),score:S.score,status:'INCIDENT',statusColor:'#FF4D5E',
+      phases:PHASES.map((p,i)=>({n:p.n,c:p.c,pips:ALL.filter(id=>ST[id].ph===i).map(id=>S.cur===id?'now':S.done.has(id)?'done':S.plan.includes(id)?'in':'skip')}))};
+  }
+  function office(){
+    if(tried)return off;tried=true;
+    if(!window.Office3D)return null;
+    try{
+      const t=$('#glbdata').textContent.trim(),bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+      const cs=getComputedStyle(neoEl);
+      off=window.Office3D.create({canvas:$('#net'),glb:u.buffer,agents:AGENTS,order:AG_ORDER,people:PEOPLE,roles:ROLE_ORDER,phases:PHASES,sensors:SENSORS,labelsHost:neoEl,
+        cssVar:k=>cs.getPropertyValue('--'+k).trim(),theme:()=>'dark',state:()=>({motion:S.motion,speed:S.speed||1,role:S.role}),zone,board,active:()=>live,
+        floorLabel:'AI-DRIVEN DEVELOPMENT LIFE CYCLE',onError:()=>{off=null}});
+      off.start();off.bindInput(neoEl);
+    }catch(e){console.warn('3D office unavailable; the incident stays on the desktop:',e);off=null}
+    return off;
+  }
+  function flash(){const f=$('#flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go')}
+  function stopGlitch(){clearInterval(glI);glI=0;document.body.classList.remove('glitch');if(!raf){D.setAttribute('scale',0);crt.style.filter=''}}
+  /* the pager goes off: the picture starts to tear, a little more each moment */
+  function alert(v){
+    if(!v||!motion()||glI||neo){if(!v)stopGlitch();return}
+    document.body.classList.add('glitch');crt.style.filter='url(#warp)';let k=0;
+    glI=setInterval(()=>{k++;D.setAttribute('scale',Math.min(40,3+k*.8)+(Math.random()<.16?50+Math.random()*70:0));Tn.setAttribute('seed',1+k%9)},70);
+  }
+  /* the incident window opens: the whole desktop spins down a drain and the office rushes up behind it */
+  function warpIn(){
+    stopGlitch();
+    if(!off||!off.ready||neo)return;
+    const my=++seq,cv=$('#net');let done=false;
+    neo=true;live=true;root.classList.add('neo');
+    neoEl.hidden=false;neoEl.classList.remove('on','out');neoEl.appendChild($('#boss'));
+    off.colors();off.layout();
+    const finish=()=>{if(done||my!==seq)return;done=true;cancelAnimationFrame(raf);raf=0;
+      crt.style.cssText='visibility:hidden';cv.style.cssText='';D.setAttribute('scale',0);document.body.classList.remove('warping');
+      neoEl.classList.add('on');if(motion())flash();off.layout()};
+    if(!motion()){finish();return}
+    document.body.classList.add('warping');AUD.sweep();
+    const t0=performance.now(),dur=1300;
+    const step=now=>{if(done||my!==seq)return;const k=Math.min(1,(now-t0)/dur),e=k*k*k;
+      D.setAttribute('scale',30+e*440);Tn.setAttribute('baseFrequency',`${(.008+k*.012).toFixed(4)} ${(.014+k*.02).toFixed(4)}`);
+      crt.style.filter=`url(#warp) brightness(${(1+e*1.2).toFixed(2)}) hue-rotate(${Math.round(k*k*300)}deg)`;
+      crt.style.transform=`scale(${Math.max(0,1+.14*Math.sin(k*Math.PI)-e*1.04).toFixed(4)}) rotate(${(e*600).toFixed(1)}deg)`;
+      cv.style.transform=`scale(${(1+(1-k)*(1-k)*2.4).toFixed(3)})`;cv.style.filter=`blur(${((1-k)*16).toFixed(1)}px) brightness(${(1+(1-k)*1.8).toFixed(2)})`;
+      if(k<1)raf=requestAnimationFrame(step);else finish()};
+    raf=requestAnimationFrame(step);setTimeout(finish,dur+300);      // the timer finishes the job in a tab that gets no animation frames
+  }
+  /* the incident is over: the old screen powers back on */
+  function warpOut(instant){
+    stopGlitch();if(!neo)return;
+    const my=++seq;neo=false;cancelAnimationFrame(raf);raf=0;
+    desk.insertBefore($('#boss'),$('#debrief'));root.classList.remove('neo');
+    crt.style.cssText='';$('#net').style.cssText='';D.setAttribute('scale',0);
+    const end=()=>{if(my!==seq)return;neoEl.hidden=true;neoEl.classList.remove('on','out');live=false;crt.classList.remove('poweron');document.body.classList.remove('warping')};
+    if(instant||!motion()){document.body.classList.remove('warping');end();return}
+    document.body.classList.add('warping');flash();neoEl.classList.add('out');crt.classList.add('poweron');AUD.blip(180,.18,'square');
+    setTimeout(end,720);
+  }
+  return{office,alert,warpIn,warpOut,off:()=>off,get neo(){return neo}};
+})();
+/* Everything the engine tells the office goes to the buddy list and to the real office, so both follow the run. */
+const net={pick(keys,cb){cand=keys?{keys,cb}:null;buddies()}};
+['layout','colors','setMode','setStage','pulse','packet','sensor','gate','vaultHit','swarm','loopback','feedback','alert','celebrate','reset','dirty','speak','humanMood','roleMood','boss','cast','noc','setCandidates','setHover','focus','spot','tourReset']
+  .forEach(n=>net[n]=(...a)=>{
+    if(n==='setMode'&&a[0]==='game')FX.office();
+    if(own[n])own[n](...a);
+    const o=FX.off();if(o&&o[n])o[n](...a);
+    if(n==='alert')FX.alert(a[0]);
+  });
+
+/* ---------------- background music: a bouncy little chip tune, and a nervous one for the incident ---------------- */
+const MUSIC=(()=>{
+  const hz=n=>440*Math.pow(2,(n-69)/12);
+  // each bar is eight eighth-notes for the lead (MIDI numbers, 0 is a rest) and a root for the oom-pah bass
+  const TUNES={
+    calm:{bpm:108,hat:true,bass:[48,53,55,48,45,53,55,48],lead:[
+      [72,76,79,76,84,0,79,0],[77,81,84,81,77,0,72,0],[79,83,86,83,79,0,74,0],[72,0,76,79,84,0,0,0],
+      [69,72,76,72,81,0,76,0],[65,69,72,77,81,0,77,0],[67,71,74,79,83,0,86,0],[84,79,76,79,72,0,0,0]]},
+    boss:{bpm:156,hat:true,bass:[45,41,38,40],lead:[
+      [69,72,76,81,76,72,69,72],[65,69,72,77,72,69,65,69],[62,65,69,74,69,65,62,65],[64,68,71,76,80,76,71,68]]},
+  };
+  let ctx=null,out=null,iv=0,step=0,next=0,mood='calm';
+  function note(f,t,d,type,vol){const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,t);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(out);o.start(t);o.stop(t+d+.03)}
+  function tick(){
+    if(!out||ctx.state!=='running')return;
+    const T=TUNES[mood],e=30/T.bpm;if(next<ctx.currentTime)next=ctx.currentTime+.05;
+    while(next<ctx.currentTime+.35){const bar=Math.floor(step/8)%T.lead.length,i=step%8,n=T.lead[bar][i];
+      if(n)note(hz(n),next,e*.8,'square',.028);
+      if(i%2===0)note(hz(T.bass[bar]+(i%4?7:0)),next,e*1.5,'triangle',.07);
+      if(T.hat&&i%2===1)note(hz(100),next,.025,'square',.006);
+      step++;next+=e}
+  }
+  return{
+    music(v,c,master){ctx=c;
+      if(v){if(iv)return;out=ctx.createGain();out.connect(master);step=0;next=0;mood='calm';iv=setInterval(tick,110);tick()}
+      else{clearInterval(iv);iv=0;if(out){const o=out;out=null;o.gain.setTargetAtTime(0,ctx.currentTime,.12);setTimeout(()=>o.disconnect(),900)}}},
+    mood(m){const w=m==='boss'?'boss':'calm';if(w!==mood){mood=w;step=0}},
+  };
+})();
 
 /* ---------------- menus and dialogs ---------------- */
 function dialog({h,p,buttons}){
@@ -943,13 +1198,13 @@ if(Q.get('auto')||Q.get('nosplash'))splash.remove();
 else{const bye=()=>splash.remove();setTimeout(bye,1500);splash.onpointerdown=bye}
 
 window.SKIN={
-  files,openFile:openEd,net,
+  files,openFile:openEd,net,music:MUSIC.music,musicMood:MUSIC.mood,
   tab(n){
     if(n==='files')show($('#w-files'));else if(n==='audit')show($('#w-audit'));
     else if(n==='comms'){page('map')}
     else{page(n==='intel'?'intel':'map');if(n==='intel'||n==='map')raise($('#w-web'))}
   },
-  reset(){for(const [k,w] of [...eds])if(k!=='readme')w._onclose();collapsed.clear();sel=null;lastN=0;stage=null;gateRole=null;cand=null;for(const k in moods)delete moods[k];files();buddies()},
+  reset(){FX.warpOut(true);for(const [k,w] of [...eds])if(k!=='readme')w._onclose();collapsed.clear();sel=null;lastN=0;stage=null;gateRole=null;cand=null;for(const k in moods)delete moods[k];files();buddies()},
   txt:{
     predict:'Which agent leads this stage? Pick a reply, press its number, or click the agent in the Buddies window.',
     pauseFiles:'What this stage wrote (the aidlc folder keeps everything):',

@@ -55,8 +55,12 @@ const SHOTS = [
       document.querySelector('#con .card.mine .fl').click();
       [...document.querySelectorAll('.win.ed:not(.active)')].forEach(w => w.querySelector('.cb').click());
       document.querySelector('#toasts').innerHTML = ''; } },
-  { name: 'retro-incident', game: 'v4.html', query: '?auto=1&role=ops&prof=feature&speed=60&hold=boss', wait: 3200,
-    until: () => !!document.querySelector('#acts'),
+  // the pager goes off and the desktop starts to tear; then it warps away into the 3D office
+  { name: 'retro-glitch', game: 'v4.html', query: '?auto=1&role=po&prof=feature&speed=60', wait: 1900,
+    pauseIf: () => S.cur === '2.3' && !!ACTIVE,
+    after: () => { [...document.querySelectorAll('.win.ed .cb')].forEach(b => b.click()); document.querySelector('#toasts').innerHTML = ''; S.speed = 1; BOSS.rate = 1; void bossFight().catch(() => {}); } },
+  { name: 'retro-incident', game: 'v4.html', query: '?auto=1&role=ops&prof=feature&speed=60&hold=boss', wait: 3600,
+    until: () => !!document.querySelector('#acts') && document.querySelector('#neo').classList.contains('on'),
     after: () => { document.querySelector('#toasts').innerHTML = ''; document.querySelector('#acts [data-id=investigate]').click(); } },
 ];
 

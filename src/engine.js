@@ -955,6 +955,7 @@ const AUD=(()=>{
   function sweep(){if(!ctx||!on)return;const t=ctx.currentTime,o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.setValueAtTime(180,t);o.frequency.exponentialRampToValueAtTime(1400,t+.55);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.06,t+.1);g.gain.exponentialRampToValueAtTime(.0001,t+.6);o.connect(g);g.connect(master);o.start(t);o.stop(t+.65)}
   function ambient(v){
     wantAmb=v;if(!ctx)return;
+    if(SKIN.music){SKIN.music(v,ctx,master);return}      // a skin may bring its own background music
     if(v&&!amb){
       const g=ctx.createGain();g.gain.setValueAtTime(0,ctx.currentTime);g.gain.linearRampToValueAtTime(.045,ctx.currentTime+4);
       const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=520;f.Q.value=3;
@@ -963,7 +964,7 @@ const AUD=(()=>{
       f.connect(g);g.connect(master);amb={g,os,lfo,f};
     }else if(!v&&amb){const a=amb;amb=null;a.g.gain.cancelScheduledValues(ctx.currentTime);a.g.gain.setTargetAtTime(0,ctx.currentTime,.5);setTimeout(()=>{try{a.os.forEach(o=>o.stop());a.lfo.stop()}catch(e){}},2500)}
   }
-  function mood(m){if(amb&&ctx)amb.f.frequency.setTargetAtTime(m==='boss'?1400:520,ctx.currentTime,1.2)}
+  function mood(m){if(SKIN.music){if(ctx&&SKIN.musicMood)SKIN.musicMood(m,ctx);return}if(amb&&ctx)amb.f.frequency.setTargetAtTime(m==='boss'?1400:520,ctx.currentTime,1.2)}
   function alarm(v){clearInterval(alarmI);alarmI=null;if(v){const ring=()=>{tone(880,.16,'square',.035);tone(660,.16,'square',.035,.2)};ring();alarmI=setInterval(ring,1600)}}
   function toggle(){on=!on;PREFS.sound=on;savePrefs();init();if(master)master.gain.setTargetAtTime(on?.55:0,ctx.currentTime,.05);return on}
   return{init,blip,chord,arp,buzz,sweep,ambient,mood,alarm,toggle,get on(){return on}};

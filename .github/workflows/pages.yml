@@ -1,11 +1,11 @@
-# Publishes the built game (v3.html) as the site's index.html on GitHub Pages.
-# It deploys the committed v3.html rather than rebuilding it, so the page is the same file the playtest ran against.
+# Publishes the two built games on GitHub Pages: v3.html (the office) as the site's index.html, v4.html (the retro desktop) under /retro/.
+# It deploys the committed files rather than rebuilding them, so each page is the same file the playtest ran against.
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths: [v3.html, .github/workflows/pages.yml]
+    paths: [v3.html, v4.html, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -27,8 +27,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Assemble the site
         run: |
-          mkdir _site
+          mkdir -p _site/retro
           cp v3.html _site/index.html
+          cp v4.html _site/retro/index.html
           touch _site/.nojekyll
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

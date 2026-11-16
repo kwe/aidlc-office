@@ -506,7 +506,7 @@ export function create(o) {
   }
   function frame(now) {
     requestAnimationFrame(frame);
-    if (!ready || document.hidden) { last = now; return; }
+    if (!ready || document.hidden || (o.active && !o.active())) { last = now; return; }   // a page that shows the office only some of the time passes active()
     if (innerWidth !== W || innerHeight !== H || (devicePixelRatio || 1) !== lastDpr) layout();
     const mot = st().motion || mode === 'title';
     if (!mot) { if (!dirty && now - lastRender < 400) { last = now; return; } }

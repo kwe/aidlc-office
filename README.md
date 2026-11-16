@@ -1,19 +1,26 @@
-# AI-DLC Mission Control: The Office
+# AI-DLC Mission Control
 
 A single-file browser game that walks a piece of work through the AWS AI-Driven Development Life Cycle (AI-DLC) v2, from
-idea to production and back again, inside a 3D office. Fourteen AI agents work the floor, five humans approve their work
-at every gate, and then production pushes back. There are six scenarios to play, and each suits different AI-DLC scopes.
+idea to production and back again. Fourteen AI agents do the work, five humans approve it at every gate, and then
+production pushes back. There are six scenarios to play, and each suits different AI-DLC scopes.
 
-![Title screen: the office at night with the fourteen agent bots around the Conductor](docs/screenshots/title.jpg)
+## Play: choose an interface
 
-## Play
+The game comes in two editions. The scenarios, scopes, questions, scoring and incident are the same in both; only the
+interface differs. Both are best on a desktop browser.
 
-**[Play it in the browser](https://kwevans.dev/aidlc-office/)** (best on a desktop browser).
+| | The office | The desktop |
+|---|---|---|
+| | [![The 3D office at night](docs/screenshots/title.jpg)](https://kwevans.dev/aidlc-office/) | [![A made-up early-1990s desktop](docs/screenshots/retro-gate.jpg)](https://kwevans.dev/aidlc-office/retro/) |
+| **Play** | **[kwevans.dev/aidlc-office](https://kwevans.dev/aidlc-office/)** | **[kwevans.dev/aidlc-office/retro](https://kwevans.dev/aidlc-office/retro/)** |
+| What it is | A 3D office. Agents fly to each phase's room, the gate owner walks down to the gate, and you can orbit the floor. | A made-up early-1990s workstation: chat windows, a folder of artifacts, an editor, a console and an old web browser. |
+| Pick it if | You want to watch the lifecycle happen and see who is doing what. | You want to read the artifacts and the conversation side by side, with a bit of nostalgia. |
+| The incident | A storm over the Operations room. | The desktop glitches, warps away, and the same 3D storm takes over. |
+| Offline | Open [`v3.html`](v3.html) | Open [`v4.html`](v4.html) |
 
-There is a second edition of the same game, played on a made-up early-1990s desktop instead of in the office:
-see [The desktop edition](#the-desktop-edition) below.
+Most of this README shows the office edition. [The desktop edition](#the-desktop-edition) has its own section below.
 
-To play offline, open [`v3.html`](v3.html) instead. There is no server and no install step; the 3D assets and all code
+To play the office edition offline, open [`v3.html`](v3.html). There is no server and no install step; the 3D assets and all code
 are embedded in the file. A window at least 1200px wide gives the office the most room.
 
 - **Mouse:** drag to orbit the office, scroll to zoom, double-click to reset the view, hover anyone to see who they are.
@@ -129,9 +136,9 @@ The game opens in the dark theme. There is a light theme too (the ◐ button), a
 
 ## The desktop edition
 
-[`v4.html`](v4.html) is the same game, with the same six scenarios, scopes, scoring and incident, on a made-up
-early-1990s workstation instead of in the 3D office. It is on the `retro-desktop` branch and is not published yet; open
-the file to play it. It has no 3D, so the file is about 0.5 MB.
+**[Play it in the browser](https://kwevans.dev/aidlc-office/retro/)**, or open [`v4.html`](v4.html) offline. It is the
+same game, with the same six scenarios, scopes, scoring and incident, on a made-up early-1990s workstation instead of in
+the 3D office.
 
 ![The landing page in the old web browser, on a desktop with a striped title bar and a menu bar](docs/screenshots/retro-home.jpg)
 
@@ -155,11 +162,23 @@ answer brings the Conductor window to the front. The keys are the same as in the
 
 ![An approval gate: the gate message in the Conductor chat and the stage's artifact open in an editor window](docs/screenshots/retro-gate.jpg)
 
-![The incident in its own window: the wave, three charts, the log and the response abilities](docs/screenshots/retro-incident.jpg)
+### The incident breaks the desktop
+
+When the pager goes off, the old screen starts to tear. Then the whole desktop warps away and the 3D office takes over,
+in a modern look on purpose: the storm over Operations, the agents around it, and the response abilities on the right.
+When the incident ends, the old screen powers back on and the run continues. With motion effects off the switch is
+instant, with no warp. Without WebGL the incident opens in a desktop window instead.
+
+![The pager goes off: the desktop ripples and tears while the alert is on screen](docs/screenshots/retro-glitch.jpg)
+
+![The same incident a moment later, in 3D: the storm over Operations with the response panel](docs/screenshots/retro-incident.jpg)
+
+Background music in this edition is a small chip tune, with a faster, nervous one for the incident. `M` turns sound off.
 
 The desktop is a pastiche of that era, not a copy of a product. It is not affiliated with any real operating system,
-browser or chat program, and it uses none of their logos or artwork. The file ships no fonts: text is drawn in whatever
-plain system fonts the computer already has, so it looks a little different on each one.
+browser or chat program, and it uses none of their logos or artwork. Menus, title bars and buttons are set in
+Sysfont, an open-licensed revival of the period's system typeface, which is embedded in the file. Everything else is
+drawn in the plain system fonts the computer already has, so body text looks a little different on each one.
 
 ## How closely it follows AI-DLC
 
@@ -195,8 +214,9 @@ This project is not affiliated with or endorsed by AWS.
 | `src/office/` | The three.js office: scene, camera, characters, effects, painted screens. |
 | `blender/build_assets.py` | Generates every 3D asset (office, 14 agent bots, Conductor, 5 humans, props). |
 | `blender/out/office.glb` | The generated asset file that gets embedded in `v3.html`. |
-| `.github/workflows/pages.yml` | Publishes the committed `v3.html` as the web page on every push to `main` that changes it. |
-| `build.mjs` | Inlines the engine and the scenarios into both pages. For `v3.html` it also bundles `src/office` with esbuild and embeds the GLB. |
+| `fonts/sysfont/` | The desktop edition's interface font, with its licence and readme. |
+| `.github/workflows/pages.yml` | Publishes the committed `v3.html` at the site root and `v4.html` under `/retro/`, on every push to `main` that changes either. |
+| `build.mjs` | Inlines the engine and the scenarios into both pages, bundles `src/office` with esbuild and embeds it and the GLB in both, and embeds the font in `v4.html`. |
 | `tools/check.mjs` | Fails the build on a syntax error, or if scenario wording appears in the engine. |
 | `tools/playtest.mjs` | Checks every scenario's data, then autoplays each scenario under each scope it offers, in either edition. |
 | `tools/screenshots.mjs` | Captures the screenshots in this README. |
@@ -207,8 +227,9 @@ positions from `A_*` empties in the GLB, so the layout lives in the Blender scri
 
 A page can set `window.SKIN` before the engine loads to take over the few places where the engine touches layout: which
 panel comes forward (`tab`), the file list (`files`), opening a document (`openFile`), clearing up between runs
-(`reset`), a stand-in for the office (`net`) and some wording (`txt`). The desktop edition is built that way; the office
-edition sets nothing.
+(`reset`), a stand-in for the office (`net`), background music (`music`) and some wording (`txt`). The desktop edition
+is built that way; the office edition sets nothing. The desktop also creates the 3D office itself and passes it every
+event, but lets it draw only while the incident is on screen.
 
 ## Build
 
@@ -246,7 +267,9 @@ window, or off screen) is listed in `window.__blocked`, and the playtest fails t
 
 ## Third-party
 
-- [three.js](https://threejs.org) (MIT) is bundled into `v3.html`; its licence notice is kept in the bundle.
+- [three.js](https://threejs.org) (MIT) is bundled into `v3.html` and `v4.html`; its licence notice is kept in the bundle.
+- Sysfont (FA Sysfont C) by Alina Sava, [FontsArena](https://fontsarena.com/sysfont-by-alina-sava/), is embedded in
+  `v4.html` under the SIL Open Font License 1.1. The licence text is in [`fonts/sysfont/OFL.txt`](fonts/sysfont/OFL.txt).
 - Method data is derived from [awslabs/aidlc-workflows](https://github.com/awslabs/aidlc-workflows) (MIT-0).
 - Fonts (Space Grotesk, Inter, JetBrains Mono) load from Google Fonts at run time and fall back to system fonts offline.
   The desktop edition loads nothing from the network.

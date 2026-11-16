@@ -33,6 +33,9 @@ const glb = fs.readFileSync('blender/out/office.glb').toString('base64');
 const v3 = assemble('src/game.html', 'v3.html', [['/*__OFFICE_JS__*/', js], ['__OFFICE_GLB__', glb]]);
 console.log(`v3.html ${(v3 / 1e6).toFixed(2)} MB  (office js ${(js.length / 1e3).toFixed(0)} kB, glb ${(glb.length / 1e6).toFixed(2)} MB base64)`);
 if (fs.existsSync('src/desktop.html')) {
-  const v4 = assemble('src/desktop.html', 'v4.html', []);
-  console.log(`v4.html ${(v4 / 1e6).toFixed(2)} MB  (retro desktop, no 3D)`);
+  // the desktop edition carries its interface font inside the file (fonts/sysfont, SIL Open Font License)
+  const sysfont = fs.readFileSync('fonts/sysfont/sysfont.woff2').toString('base64');
+  // ...and the same 3D office, which it shows only for the incident
+  const v4 = assemble('src/desktop.html', 'v4.html', [['__SYSFONT__', sysfont], ['/*__OFFICE_JS__*/', js], ['__OFFICE_GLB__', glb]]);
+  console.log(`v4.html ${(v4 / 1e6).toFixed(2)} MB  (retro desktop; the 3D office appears for the incident)`);
 }

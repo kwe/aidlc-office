@@ -91,7 +91,9 @@ async function run({ scen, prof, auto, role }) {
     const r = await page.evaluate(() => {
       const broken = [];   // every artifact must still render at the end of the run
       for (const f of Object.values(S.files)) { try { if (f.b && typeof f.b() !== 'string') broken.push(f.p); } catch (e) { broken.push(f.p + ': ' + e.message); } }
-      return { d: window.__done, err: window.__err ? String(window.__err.stack || window.__err) : '', broken, undef: [...window.__pkLog], blocked: window.__blocked || [] };
+      return { d: window.__done, err: window.__err ? String(window.__err.stack || window.__err) : '', broken, undef: [...window.__pkLog], blocked: window.__blocked || [],
+        // the desktop edition leaves its desktop for the incident: by the debrief it must be back
+        away: document.documentElement.classList.contains('neo') || (!!document.querySelector('#neo') && !document.querySelector('#desktop > #boss')) };
     });
     const notes = [];
     if (r.broken.length) notes.push('artifacts that fail to render: ' + r.broken.join(', '));
@@ -103,6 +105,7 @@ async function run({ scen, prof, auto, role }) {
     if (r.d && (r.d.pauses < r.d.teamGates || (r.d.teamGates > 0 && !r.d.pauses))) notes.push(`paused after ${r.d.pauses} of ${r.d.teamGates} teammate-gated stages`);
     // a prompt the player could not have clicked where it sat: covered by something, scrolled out of view or off screen
     if (r.blocked.length) notes.push(`${r.blocked.length} prompt(s) were not clickable on screen: ${[...new Set(r.blocked)].slice(0, 4).join(' | ')}`);
+    if (r.away) notes.push('the desktop did not come back after the incident');
     const ok = r.d && !r.err && !errors.length && !notes.length && r.d.missing.length === 0 && r.d.prof === prof && r.d.scen === scen;
     if (!ok) failed++;
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${tag} stages ${r.d ? r.d.stages + '/' + r.d.plan : '?'}  score ${r.d ? r.d.score : '?'}  incident ${r.d && r.d.boss ? (r.d.boss.won ? 'held' : r.d.boss.rolledBack ? 'rolled back' : 'breached') + ' (' + r.d.boss.cause + ')' : '?'}  jumps ${r.d ? r.d.loops : '?'}  pauses ${r.d ? r.d.pauses + '/' + r.d.teamGates : '?'}${[r.err, ...errors, ...notes].filter(Boolean).map(x => '\n     ' + x).join('')}`);
