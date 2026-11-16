@@ -116,7 +116,7 @@ The debrief traces each outcome back to the decision that caused it, and says ho
 
 ![Mission debrief with score, decision chain, badges and stats](docs/screenshots/debrief.jpg)
 
-There is a light theme too.
+The game opens in the dark theme. There is a light theme too (the ◐ button), and the choice is remembered.
 
 ![The Construction bay in the light theme, with Architect, DevSecOps, Compliance and Quality at the table](docs/screenshots/light.jpg)
 
