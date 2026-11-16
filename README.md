@@ -10,6 +10,9 @@ at every gate, and then production pushes back. There are six scenarios to play,
 
 **[Play it in the browser](https://kwevans.dev/aidlc-office/)** (best on a desktop browser).
 
+There is a second edition of the same game, played on a made-up early-1990s desktop instead of in the office:
+see [The desktop edition](#the-desktop-edition) below.
+
 To play offline, open [`v3.html`](v3.html) instead. There is no server and no install step; the 3D assets and all code
 are embedded in the file. A window at least 1200px wide gives the office the most room.
 
@@ -124,6 +127,40 @@ The game opens in the dark theme. There is a light theme too (the ◐ button), a
 
 ![The Construction bay in the light theme, with Architect, DevSecOps, Compliance and Quality at the table](docs/screenshots/light.jpg)
 
+## The desktop edition
+
+[`v4.html`](v4.html) is the same game, with the same six scenarios, scopes, scoring and incident, on a made-up
+early-1990s workstation instead of in the 3D office. It is on the `retro-desktop` branch and is not published yet; open
+the file to play it. It has no 3D, so the file is about 0.5 MB.
+
+![The landing page in the old web browser, on a desktop with a striped title bar and a menu bar](docs/screenshots/retro-home.jpg)
+
+| Window | What it holds |
+|---|---|
+| **NetVoyager** (web browser) | Before a run: the home page and Mission Setup, where you choose the work, a scope and a seat. During a run: the *Lifecycle* page (the map of all 33 stages and the current stage) and the *Intel* page. |
+| **Conductor** (chat) | Everything that needs you, as messages with reply buttons: predicting the lead agent, questions for your role, your approval gates, and the pause after a teammate's stage. |
+| **Team Room** (chat) | Agents and teammates talking. Nothing here needs an answer. |
+| **Buddies** | Who is leading, supporting or reviewing the current stage, and who is at the gate. When you are asked who leads a stage you can click the agent here. |
+| **aidlc** (folder) | Every artifact, as a folder list. Double-click a document to open it in an editor window. Bold names are unread. |
+| **Console** | The audit log, one line per workflow event. The intro types its commands in a console too. |
+
+Windows drag by their title bars, resize from the bottom-right corner, zoom from the box at the right of the title bar
+and close from the box at the left. The **Windows** menu reopens a closed one, **Special ▸ Clean Up Windows** puts them
+all back, and **View** sets the speed, the sound and the pause after each teammate's stage. A message that needs your
+answer brings the Conductor window to the front. The keys are the same as in the office edition.
+
+![Mission Setup as an old web page: six pieces of work, then the scopes offered for the one chosen](docs/screenshots/retro-setup.jpg)
+
+![Predicting the lead agent: the question in the Conductor chat, the candidates marked in the Buddies window](docs/screenshots/retro-predict.jpg)
+
+![An approval gate: the gate message in the Conductor chat and the stage's artifact open in an editor window](docs/screenshots/retro-gate.jpg)
+
+![The incident in its own window: the wave, three charts, the log and the response abilities](docs/screenshots/retro-incident.jpg)
+
+The desktop is a pastiche of that era, not a copy of a product. It is not affiliated with any real operating system,
+browser or chat program, and it uses none of their logos or artwork. The file ships no fonts: text is drawn in whatever
+plain system fonts the computer already has, so it looks a little different on each one.
+
 ## How closely it follows AI-DLC
 
 Stage names and order, modes, lead, support and reviewer agents, conditional flags, the sensors each stage imports, and
@@ -148,39 +185,48 @@ This project is not affiliated with or endorsed by AWS.
 
 | Path | What it is |
 |---|---|
-| `v3.html` | The built game. |
+| `v3.html` | The built game: the office edition. |
+| `v4.html` | The built game: the retro desktop edition. |
 | `v2.html` | The original 2D simulator, kept for reference. |
-| `src/game.html` | Game shell, styles, method data and engine. It contains no story. |
+| `src/engine.js` | Method data and the game engine, shared by both editions. It contains no story. |
+| `src/game.html` | The office edition's page: layout and styles around the engine. |
+| `src/desktop.html` | The desktop edition's page: styles, window manager, menus, file list, editor and buddy list. |
 | `src/scenarios/*.js` | The six scenarios: questions, artifacts, chat, findings, incident and debrief for each. |
 | `src/office/` | The three.js office: scene, camera, characters, effects, painted screens. |
 | `blender/build_assets.py` | Generates every 3D asset (office, 14 agent bots, Conductor, 5 humans, props). |
 | `blender/out/office.glb` | The generated asset file that gets embedded in `v3.html`. |
 | `.github/workflows/pages.yml` | Publishes the committed `v3.html` as the web page on every push to `main` that changes it. |
-| `build.mjs` | Bundles `src/office` with esbuild and inlines it, the scenarios and the GLB into `v3.html`. |
+| `build.mjs` | Inlines the engine and the scenarios into both pages. For `v3.html` it also bundles `src/office` with esbuild and embeds the GLB. |
 | `tools/check.mjs` | Fails the build on a syntax error, or if scenario wording appears in the engine. |
-| `tools/playtest.mjs` | Checks every scenario's data, then autoplays each scenario under each scope it offers. |
+| `tools/playtest.mjs` | Checks every scenario's data, then autoplays each scenario under each scope it offers, in either edition. |
 | `tools/screenshots.mjs` | Captures the screenshots in this README. |
 
 The engine reads a scenario only through `SCN` (set by `useScenario()`), and talks to the office only through the `NET`
 bridge. The office reads room, desk, dock and gate
 positions from `A_*` empties in the GLB, so the layout lives in the Blender script alone.
 
+A page can set `window.SKIN` before the engine loads to take over the few places where the engine touches layout: which
+panel comes forward (`tab`), the file list (`files`), opening a document (`openFile`), clearing up between runs
+(`reset`), a stand-in for the office (`net`) and some wording (`txt`). The desktop edition is built that way; the office
+edition sets nothing.
+
 ## Build
 
 ```bash
 npm install
 npm run assets        # only after editing blender/build_assets.py (needs Blender 5.x at /Applications/Blender.app)
-npm run build         # writes v3.html
+npm run build         # writes v3.html and v4.html
 npm run playtest      # optional: autoplay every scenario and scope to the debrief (needs Google Chrome)
+npm run playtest:retro   # the same, against the desktop edition
 npm run screenshots   # optional: recapture docs/screenshots (needs Google Chrome)
 ```
 
-Method data lives in two places in `src/game.html`: the `UPSTREAM` table (generated from the upstream stage frontmatter)
+Method data lives in two places in `src/engine.js`: the `UPSTREAM` table (generated from the upstream stage frontmatter)
 and `PROFILES` (all 11 scopes: stage lists from each stage's `scopes:` frontmatter, switches from `core/scopes/aidlc-<name>.md`).
 
 ### Adding a scenario
 
-Copy `src/scenarios/bug.js`, the shortest one, and add its id to `SCEN_ORDER` in `src/game.html`. A scenario lists the
+Copy `src/scenarios/bug.js`, the shortest one, and add its id to `SCEN_ORDER` in `src/engine.js`. A scenario lists the
 scopes that can run it (`scopes`, `best`, `fit`) and must supply content for every stage those scopes include.
 `npm run playtest` checks that, and that every question is asked, every fix target exists, and no artifact quietly shows
 the best answer for a decision nobody made (use `pkd()` for a decision from a stage the scope may have skipped).
@@ -188,7 +234,8 @@ the best answer for a decision nobody made (use `pkd()` for a decision from a st
 ## Autoplay (testing)
 
 `v3.html?auto=1&scen=velocity&role=po&prof=feature&speed=60` plays a full run by itself and sets `window.__done` at the
-debrief.
+debrief. `v4.html` takes the same parameters. A prompt that could not have been clicked where it sat (covered by a
+window, or off screen) is listed in `window.__blocked`, and the playtest fails the run.
 
 - `auto=1` best answers · `auto=bad` worst answers and rubber stamps · `auto=fix` worst answers, then request every fix ·
   `auto=hot` best answers except a hot-partition store that is never fixed
@@ -202,3 +249,4 @@ debrief.
 - [three.js](https://threejs.org) (MIT) is bundled into `v3.html`; its licence notice is kept in the bundle.
 - Method data is derived from [awslabs/aidlc-workflows](https://github.com/awslabs/aidlc-workflows) (MIT-0).
 - Fonts (Space Grotesk, Inter, JetBrains Mono) load from Google Fonts at run time and fall back to system fonts offline.
+  The desktop edition loads nothing from the network.

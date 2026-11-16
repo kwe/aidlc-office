@@ -177,7 +177,7 @@ const stages={
 },
 '0.3':{
  files:[{p:REC+'aidlc-state.md',opt:1,b:()=>H('Workflow state')+T(['Field','Value'],[['Intent','network-velocity (ID-VEL-02)'],['Scope',S.prof],['Workspace','brownfield'],['Current stage',S.cur||'—'],['Depth',scope().depth],['Guard Policy',scope().guard],['Collaborators',scope().collab?'on':'off'],['Sensors',scope().sensors?'on':'off'],['Plan approval',scope().planApproval?'on':'off'],['Walking skeleton',scope().skeleton?'on':'off']])},
-        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. See the Audit tab for the live view.')}],
+        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. '+TXT.auditWhere)}],
  pre:[['SYS','<code>WORKSPACE_INITIALISED</code> · <code>WORKFLOW_STARTED</code>']]
 },
 /* ===== 1 IDEATION ===== */

@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-DLC v2 · Mission Control: The Desktop</title>
+<meta name="description" content="An unofficial interactive simulator for the AWS AI-Driven Development Life Cycle v2, played on a made-up early-1990s desktop: chat windows, a file browser, a text editor, a console and an old web browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='2' y='1' width='12' height='11' fill='%23fff' stroke='%23000'/%3E%3Crect x='4' y='3' width='8' height='6' fill='%23aab0e0' stroke='%23000'/%3E%3Crect x='3' y='13' width='10' height='2' fill='%23fff' stroke='%23000'/%3E%3C/svg%3E">
+<style>
+/* =====================================================================
+   The retro desktop edition. A made-up early-1990s operating system:
+   nothing here is a real product's name, logo, font or artwork.
+   The engine (src/engine.js) is the same one the office edition runs.
+   ===================================================================== */
+:root{
+  --ink:#000; --muted:#444; --dim:#767676; --line:#000; --line2:#000; --paper:#fff; --grey:#ddd; --tint:#ccccff;
+  --bg:#fff; --bg2:#fff; --panel:#fff; --panel2:#fff; --solid:#fff; --onfill:#fff;
+  --cyan:#00659a; --mag:#a4127f; --lime:#2d7a12; --amber:#a86a00; --red:#c4001a; --violet:#5b3fc4;
+  --accent:#000080; --good:#006b2d; --bad:#b00020; --warn:#8a5a00;
+  --po:#c2185b; --eng:#1a56c4; --pm:#00796b; --ops:#b85c00; --sec:#6a3fc0; --role:var(--eng);
+  --ui:"ChicagoFLF","Chicago","Charcoal","Geneva","Tahoma","Verdana",sans-serif;
+  --body:"Geneva","Tahoma","Verdana",sans-serif; --display:var(--ui);
+  --mono:"Monaco","Courier New",monospace; --serif:"Times New Roman","Times",serif;
+  --deskpat:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%239298c8'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%239298c8'/%3E%3C/svg%3E");
+  --dither:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3C/svg%3E");
+}
+body[data-role="po"]{--role:var(--po)} body[data-role="eng"]{--role:var(--eng)} body[data-role="pm"]{--role:var(--pm)} body[data-role="ops"]{--role:var(--ops)} body[data-role="sec"]{--role:var(--sec)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:#000;color:var(--ink);font:12px/1.4 var(--body);overflow:auto;-webkit-font-smoothing:none;cursor:default}
+button{font-family:inherit;color:inherit}
+h1,h2,h3,h4{font-family:var(--ui);margin:0;line-height:1.2}
+p{margin:0}
+code{font-family:var(--mono);font-size:.95em}
+kbd{font:10px/1.3 var(--mono);padding:0 3px;border:1px solid #000;border-radius:2px;background:#fff;color:#000;white-space:nowrap}
+:focus-visible{outline:2px dotted #000;outline-offset:2px}
+.mono{font-family:var(--mono)} .muted{color:var(--muted)}
+.ok{color:var(--good)} .no{color:var(--bad)} .wa{color:var(--warn)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ic{width:16px;height:16px;flex:0 0 auto;shape-rendering:crispEdges;overflow:visible}
+.ic.big{width:32px;height:32px}
+.ic *{vector-effect:non-scaling-stroke}
+/* neon colours the engine writes inline (agent and phase colours) are unreadable on white paper */
+[style*="color:#"]{color:var(--ink)!important}
+
+/* ---------- the screen ---------- */
+#screen{position:relative;min-width:1000px;min-height:620px;height:100vh;overflow:clip;background:#000}
+#screen::after{content:"";position:absolute;inset:0;z-index:9999;pointer-events:none;
+  background:radial-gradient(circle at 7px 7px,transparent 6.5px,#000 7px) 0 0/7px 7px no-repeat,radial-gradient(circle at 0 7px,transparent 6.5px,#000 7px) 100% 0/7px 7px no-repeat,
+             radial-gradient(circle at 7px 0,transparent 6.5px,#000 7px) 0 100%/7px 7px no-repeat,radial-gradient(circle at 0 0,transparent 6.5px,#000 7px) 100% 100%/7px 7px no-repeat}
+#menubar{position:absolute;left:0;right:0;top:0;height:21px;z-index:9000;display:flex;align-items:stretch;background:#fff;border-bottom:1px solid #000;font:bold 12px/20px var(--ui);user-select:none;padding:0 10px}
+#menus{display:flex;flex:0 0 auto}
+.mi{all:unset;padding:0 9px;white-space:nowrap}
+.mi.logo{padding:0 10px 0 6px;font-size:14px}
+.mi[aria-expanded="true"]{background:#000;color:#fff}
+.menu{position:absolute;top:20px;z-index:9001;min-width:190px;background:#fff;border:1px solid #000;box-shadow:2px 2px 0 #000;padding:2px 0;font:bold 12px/18px var(--ui)}
+.menu button{all:unset;display:flex;gap:18px;justify-content:space-between;width:100%;box-sizing:border-box;padding:0 14px 0 20px;position:relative;white-space:nowrap}
+.menu button:hover,.menu button:focus-visible{background:#000;color:#fff;outline:0}
+.menu button[disabled]{color:#999;background:none}
+.menu button.chk::before{content:"✓";position:absolute;left:6px}
+.menu hr{border:0;border-top:1px dotted #000;margin:2px 0}
+.menu .key{font-weight:normal}
+#banner{flex:1 1 0;min-width:0;display:flex;gap:6px;align-items:baseline;justify-content:center;white-space:nowrap;overflow:hidden;padding:0 12px;font:11px/20px var(--body)}
+#banner .k{font-weight:bold}
+#banner h3{font:bold 12px/20px var(--ui);overflow:hidden;text-overflow:ellipsis}
+#banner p{color:var(--muted)}
+body:not([data-st="game"]) #banner,body:not([data-st="game"]) #meters{visibility:hidden}
+.meters{display:flex;gap:11px;align-items:baseline;flex:0 0 auto;font-weight:normal}
+.mt{display:flex;gap:4px;align-items:baseline;white-space:nowrap}
+.mt .k{font:9px/20px var(--body);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.mt b{font:bold 12px/20px var(--ui);font-size:12px!important}
+.mt .bar{display:none}
+.mt.bump b{animation:inv .5s steps(2) 1}
+@keyframes inv{50%{background:#000;color:#fff}}
+@keyframes blink{50%{opacity:.25}}
+#desktop{position:absolute;left:0;right:0;top:21px;bottom:0;overflow:clip;background:#a9afd9 var(--deskpat)}
+.dicons{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:14px;align-items:center;width:78px}
+.dicon{all:unset;display:flex;flex-direction:column;align-items:center;gap:3px;width:78px;text-align:center}
+.dicon span{font:11px/1.2 var(--body);background:#fff;padding:0 3px}
+.dicon:focus-visible{outline:0}
+.dicon:focus-visible span,.dicon:active span{background:#000;color:#fff}
+.dicon:active .ic{filter:invert(1)}
+
+/* ---------- windows ---------- */
+.win{position:absolute;display:flex;flex-direction:column;min-width:200px;min-height:80px;background:#fff;border:1px solid #000;box-shadow:1px 1px 0 #000,2px 2px 0 #000}
+.win[hidden],.win.closed{display:none}
+#app{display:contents} #app[hidden]{display:none}
+/* the incident and the debrief are modal: always in front, and nothing behind them takes a click */
+.win.modal{z-index:7000!important}
+#desktop:has(>.modal:not([hidden])) .win:not(.modal),#desktop:has(>.modal:not([hidden])) .dicons{pointer-events:none}
+.tb{flex:0 0 19px;height:19px;display:flex;align-items:center;gap:5px;padding:3px 2px;border-bottom:1px solid #000;background:#fff;user-select:none;touch-action:none}
+.win.active>.tb{background:repeating-linear-gradient(#fff 0 1px,#000 1px 2px) content-box,#fff}
+.wtt{margin:0 auto;padding:0 8px;background:#fff;font:bold 12px/13px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#777}
+.win.active>.tb .wtt{color:#000}
+.cb,.zb,.nb{flex:0 0 13px;width:13px;height:13px;margin:0 6px;padding:0}
+.cb,.zb{all:unset;flex:0 0 11px;width:11px;height:11px;margin:0 6px;border:1px solid #000;background:#fff;box-shadow:0 0 0 1px #fff;box-sizing:border-box;visibility:hidden}
+.win.active>.tb .cb,.win.active>.tb .zb{visibility:visible}
+.zb::after{content:"";display:block;width:5px;height:5px;border-right:1px solid #000;border-bottom:1px solid #000}
+.cb:active,.zb:active{background:#000}
+.wb{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.grow{position:absolute;right:0;bottom:0;width:15px;height:15px;z-index:3;border-left:1px solid #000;border-top:1px solid #000;cursor:nwse-resize;touch-action:none;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' shape-rendering='crispEdges'%3E%3Crect x='5.5' y='5.5' width='7' height='7' fill='%23fff' stroke='%23000'/%3E%3Crect x='2.5' y='2.5' width='6' height='6' fill='%23fff' stroke='%23000'/%3E%3C/svg%3E") no-repeat}
+.win:not(.active)>.grow{background-image:none}
+/* scroll bars */
+#screen ::-webkit-scrollbar{width:16px;height:16px;background:#fff}
+#screen ::-webkit-scrollbar-track{background:#eee var(--dither);box-shadow:inset 1px 0 0 #000,inset 0 1px 0 #000}
+#screen ::-webkit-scrollbar-thumb{background:#fff;border:1px solid #000;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 3px #bbb}
+#screen ::-webkit-scrollbar-corner{background:#fff}
+#screen ::-webkit-scrollbar-button:single-button{display:block;width:16px;height:16px;background:#fff center/9px 9px no-repeat;border:1px solid #000}
+#screen ::-webkit-scrollbar-button:single-button:vertical:decrement{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1l4 5h-8z' fill='none' stroke='%23000'/%3E%3C/svg%3E")}
+#screen ::-webkit-scrollbar-button:single-button:vertical:increment{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 8l4-5h-8z' fill='none' stroke='%23000'/%3E%3C/svg%3E")}
+#screen ::-webkit-scrollbar-button:single-button:horizontal:decrement{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1 4.5l5-4v8z' fill='none' stroke='%23000'/%3E%3C/svg%3E")}
+#screen ::-webkit-scrollbar-button:single-button:horizontal:increment{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M8 4.5l-5-4v8z' fill='none' stroke='%23000'/%3E%3C/svg%3E")}
+
+/* ---------- controls ---------- */
+.btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:22px;padding:2px 14px;border:1px solid #000;border-radius:6px;background:#fff;font:bold 12px/1.25 var(--ui);text-align:center;user-select:none}
+.btn:active{background:#000;color:#fff}
+.btn:focus-visible{outline:2px dotted #000;outline-offset:3px}
+.btn.primary{outline:2px solid #000;outline-offset:1px;border-radius:6px;margin:3px}
+.btn.primary:focus-visible{outline:3px solid #000}
+.btn.small{font-weight:normal;font-size:11px;min-height:19px;padding:1px 10px}
+.btn.warn{border-style:dashed}
+.btn[disabled]{color:#999;border-color:#999;outline-color:#999;pointer-events:none}
+.btn .sub{display:block;font:11px/1.25 var(--body)}
+.btn:has(.sub){flex-direction:column;gap:1px}
+.btns{display:flex;flex-direction:column;gap:9px;align-items:stretch}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{all:unset;box-sizing:border-box;padding:1px 9px;border:1px solid #000;border-radius:9px;background:#fff;font:11px/1.4 var(--body)}
+.chip.fix{font-weight:bold;border-width:2px}
+.chip:hover,.chip:active{background:#000;color:#fff}
+.tag{display:inline-block;font:10px/1.3 var(--body);text-transform:uppercase;letter-spacing:.03em;padding:0 5px;border:1px solid #000!important;background:#fff;white-space:nowrap}
+.tag.ph{background:#000;color:#fff!important}
+.tag.cond{border-style:dashed!important}
+.hint{font-size:11px;line-height:1.35;color:var(--muted)}
+.owner{font:bold 10px/1.4 var(--ui);text-transform:uppercase;padding:0 5px;color:#fff;background:var(--oc,#000)}
+
+/* ---------- chat: the Conductor window ---------- */
+#con{flex:1;overflow-y:auto;padding:0 10px 14px 8px;display:flex;flex-direction:column;gap:11px;background:#fff;scroll-padding:40px 0 8px}
+.turn{position:sticky;top:0;z-index:2;margin:0 -10px 0 -8px;padding:3px 9px;min-height:22px;background:#eee;border-bottom:1px solid #000;font-size:11px;line-height:1.35;display:flex;gap:7px;align-items:baseline}
+.turn .who{font:bold 11px var(--ui);white-space:nowrap}
+.turn .tt{flex:1;min-width:0}
+#con>*{flex-shrink:0}      /* a long conversation scrolls; it must not squash the status strip or the messages */
+.turn.me{background:#000;color:#fff}
+.turn.me kbd{border-color:#fff}
+.turn.me .who::before{content:"● ";animation:blink 1s steps(2) infinite}
+#con .card{position:relative;margin-left:36px;border:1px solid #000;border-radius:11px;padding:7px 10px 9px;background:#f0f0f0;display:flex;flex-direction:column;gap:7px}
+#con .card::before{content:"◎";position:absolute;left:-37px;top:0;width:27px;height:27px;border:1px solid #000;background:#fff;display:grid;place-items:center;font:16px/1 var(--ui)}
+#con .card::after{content:"";position:absolute;left:-5px;top:9px;width:8px;height:8px;background:inherit;border-left:1px solid #000;border-bottom:1px solid #000;transform:rotate(45deg)}
+#con .card.mine{background:color-mix(in srgb,var(--role) 13%,#fff);border-width:2px}
+#con .card.mine::after{left:-6px;border-width:2px}
+#con .card.flash{animation:flash .5s steps(2) 3}
+@keyframes flash{50%{background:#fff}}
+.ck{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.03em;display:flex;justify-content:space-between;gap:8px;align-items:center;color:#333}
+.ck .mono{font:bold 10px var(--ui)}
+.ck>span:last-child{flex:0 0 auto;white-space:nowrap}
+.q{font:bold 13px/1.35 var(--ui)}
+.opts,.apick{display:flex;flex-direction:column;gap:5px}
+.opt,.ag{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:flex-start;padding:4px 9px;border:1px solid #000;border-radius:10px;background:#fff;font-size:12px;line-height:1.35}
+.opt:hover:not([disabled]),.ag:hover:not([disabled]),.opt:focus-visible,.ag:focus-visible{background:#000;color:#fff;outline:0}
+.opt b{font:bold 11px/1.5 var(--ui);min-width:12px}
+.opt[disabled]{border-style:dotted;color:#555}
+.opt.picked{background:#000!important;color:#fff!important;border-style:solid}
+.opt.dim{color:#888;border-color:#aaa;border-style:solid}
+.ag{align-items:center}
+.ag .av,.msg .av,.act .ah .av,.bud .av{flex:0 0 auto;display:grid;place-items:center;border:1px solid #000;background:var(--ac,#fff);color:#000;font:bold 9px/1 var(--mono)}
+.ag .av{width:27px;height:27px}
+.ag span{display:flex;flex-direction:column;font:bold 12px/1.3 var(--ui)}
+.ag small{font:11px/1.3 var(--body);font-weight:normal}
+.ag:hover:not([disabled]) kbd{background:#fff;color:#000}
+.ag.right{border-width:2px}.ag.right::after{content:"✓";font-weight:bold;margin-left:6px}
+.ag.wrong{text-decoration:line-through;color:#888;border-color:#aaa}
+.ag[disabled]:not(.right):not(.wrong){color:#888;border-color:#aaa}
+.finding{border:1px solid #000;border-left:5px solid var(--fc,var(--warn));padding:4px 8px;background:#fff;font-size:12px;line-height:1.35;display:flex;flex-direction:column;gap:2px}
+.finding .fh{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.03em;color:var(--fc,var(--warn))}
+.finding .src{font:10px/1.3 var(--mono);color:var(--muted)}
+.finding.ok{--fc:var(--good)}
+.steps{display:flex;flex-wrap:wrap;gap:1px 9px}
+.stp{display:flex;gap:4px;align-items:center;font-size:11px;color:#888}
+.stp i{width:9px;height:9px;border:1px solid #888;flex:0 0 auto}
+.stp.done{color:#000}.stp.done i{background:#000;border-color:#000}
+.stp.now{color:#000;font-weight:bold}.stp.now i{border-color:#000;background:#000;animation:blink .8s steps(2) infinite}
+.stp.skipd{text-decoration:line-through}
+.sensors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px 8px}
+.sn{font:10px/1.5 var(--mono);display:flex;gap:5px;align-items:center;white-space:nowrap;overflow:hidden}
+.sn i{width:8px;height:8px;border:1px solid #000;border-radius:50%;flex:0 0 auto}
+.sn.off{color:#999}.sn.off i{border-color:#999;border-style:dotted}
+.sn.run i{background:#000;animation:blink .4s steps(2) infinite}
+.sn.pass i{background:var(--good)}
+.sn.fail{color:var(--bad);font-weight:bold}.sn.fail i{background:var(--bad)}
+.unread{display:flex;flex-wrap:wrap;gap:4px}
+.fl{all:unset;box-sizing:border-box;font:bold 11px/1.5 var(--mono);padding:0 6px 0 4px;border:1px solid #000;background:#fff;text-decoration:underline}
+.fl::before{content:"▯ ";text-decoration:none;display:inline-block}
+.fl.seen{font-weight:normal;color:#555;text-decoration:none}
+.fl.seen::before{content:"✓ "}
+.fl:hover,.fl:active{background:#000;color:#fff}
+.ubar{display:flex;flex-direction:column;gap:5px}
+.ub{display:flex;flex-direction:column;gap:2px;font:10px/1.3 var(--mono)}
+.ub .l{display:flex;justify-content:space-between}
+.ub .t{height:9px;border:1px solid #000;background:#fff}
+.ub .t i{display:block;height:100%;background:#444 var(--dither);transition:width .35s steps(8)}
+.ub.done .t i{background:#000}
+.rolebrief{font-size:11px;border-top:1px dotted #000;padding-top:5px}
+.typing{display:flex;gap:3px;padding:2px 0 0 36px}
+.typing i{width:5px;height:5px;background:#000;animation:blink 1s steps(2) infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+
+/* ---------- chat: the team room ---------- */
+.feed{flex:1;overflow-y:auto;padding:9px 10px 12px 8px;display:flex;flex-direction:column;gap:8px;background:#fff;--muted:#ccc}
+.msg{display:flex;gap:8px;align-items:flex-start}
+.msg .av{width:27px;height:27px}
+.msg .av.h{color:#fff;border-radius:50%}
+.msg .bd{display:flex;flex-direction:column;gap:1px;min-width:0;align-items:flex-start}
+.msg .nm{font:10px/1.3 var(--body);color:#444}
+.msg .tx{position:relative;font-size:12px;line-height:1.38;border:1px solid #000;border-radius:10px;padding:3px 9px 4px;background:color-mix(in srgb,var(--ac,#bbb) 22%,#fff)}
+.msg .tx::before{content:"";position:absolute;left:-5px;top:8px;width:7px;height:7px;background:inherit;border-left:1px solid #000;border-bottom:1px solid #000;transform:rotate(45deg)}
+.msg.me{flex-direction:row-reverse}
+.msg.me .bd{align-items:flex-end}
+.msg.me .tx::before{left:auto;right:-5px;border:0;border-right:1px solid #000;border-top:1px solid #000}
+.msg.sys{justify-content:center}
+.msg.sys .av,.msg.sys .nm{display:none}
+.msg.sys .bd{align-items:center}
+.msg.sys .tx{border:0;border-radius:0;background:none;font:10px/1.4 var(--mono);color:#444;text-align:center;padding:0 12px}
+.msg.sys .tx::before{display:none}
+.msg.ask .tx{border-width:2px}
+.msg .tx code{font-size:11px}
+.cinput{flex:0 0 auto;border-top:1px solid #000;padding:4px 20px 4px 8px;font-size:10px;line-height:1.3;color:var(--muted);background:#eee}
+
+/* ---------- buddies ---------- */
+#buds{flex:1;overflow-y:auto;padding:4px 0 8px;background:#fff}
+.bgrp{font:bold 10px/1.6 var(--ui);text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-bottom:1px dotted #000;margin-bottom:2px}
+.bcols{columns:2;column-gap:0}
+.bud{all:unset;box-sizing:border-box;display:flex;gap:6px;align-items:center;width:100%;padding:1px 8px;font-size:11px;line-height:1.25;break-inside:avoid;color:#888}
+.bud .av{width:21px;height:17px;font-size:8px;filter:grayscale(1);opacity:.55}
+.bud .av.h{border-radius:50%;width:17px;color:#fff}
+.bud span{display:flex;flex-direction:column;min-width:0}
+.bud b{font:bold 11px/1.25 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bud small{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bud.on{color:#000}.bud.on .av{filter:none;opacity:1}
+.bud.cand{color:#000;background:#fff}.bud.cand .av{filter:none;opacity:1;animation:blink .8s steps(2) infinite}
+.bud.cand:hover,.bud.cand:focus-visible{background:#000;color:#fff;outline:0}
+.bud.hit{background:#000;color:#fff}
+
+/* ---------- files and the editor ---------- */
+.fhead{flex:0 0 auto;display:flex;justify-content:space-between;gap:10px;padding:2px 9px;border-bottom:1px solid #000;font-size:11px;white-space:nowrap;overflow:hidden}
+.fcols,.frow{display:grid;grid-template-columns:minmax(110px,1fr) minmax(0,128px) 44px;gap:6px;align-items:center}
+.fcols{flex:0 0 auto;padding:1px 22px 1px 9px;border-bottom:3px double #000;font-size:10px}
+.fcols span:first-child{text-decoration:underline}
+#finder{flex:1;overflow-y:auto;padding:2px 0 16px;background:#fff}
+.frow{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(110px,1fr) minmax(0,128px) 44px;gap:6px;align-items:center;width:100%;padding:0 6px 0 calc(9px + var(--d,0)*16px);font-size:12px;line-height:18px;white-space:nowrap}
+.frow .nm{display:flex;gap:5px;align-items:center;min-width:0}
+.frow .nm b{font-weight:normal;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.frow .tri{width:9px;flex:0 0 9px;font-size:9px;text-align:center}
+.frow .kd,.frow .rv{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+.frow.file.unread .nm b{font-weight:bold}
+.frow.file.unread .nm b::after{content:" •"}
+.frow .nw{font:bold 9px/1.3 var(--ui);border:1px solid #000;padding:0 3px;margin-left:2px}
+.frow.sel .nm b{background:#000;color:#fff}
+.frow.sel .ic{filter:invert(1)}
+.frow:focus-visible{outline:0}.frow:focus-visible .nm b{outline:1px dotted #000}
+.fempty{padding:18px;text-align:center;color:var(--muted)}
+.edbar{flex:0 0 auto;padding:2px 9px;border-bottom:1px solid #000;font:10px/1.5 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left}
+.edbar bdi{direction:ltr}
+.eddoc{flex:1;overflow:auto;padding:10px 26px 22px 12px;background:#fff;user-select:text;cursor:text}
+.doc{font-size:12px;line-height:1.45}
+.doc h4{font:bold 13px/1.3 var(--ui);margin:13px 0 4px;padding-bottom:1px;border-bottom:1px solid #000}
+.doc h4:first-child{margin-top:0}
+.doc p{margin:0 0 6px}
+.doc ul{margin:0 0 6px;padding-left:18px}
+.doc li{margin:1px 0}
+.doc table{border-collapse:collapse;width:100%;font-size:11px;margin:3px 0 8px}
+.doc td,.doc th{border:1px solid #000;padding:2px 5px;text-align:left;vertical-align:top}
+.doc th{font:bold 10px var(--ui);text-transform:uppercase;background:#eee}
+.doc pre{font:11px/1.45 var(--mono);border:1px solid #000;padding:6px 8px;white-space:pre-wrap;overflow-x:auto;margin:3px 0 8px;background:#fff}
+.doc .c{color:var(--dim)} .doc .k{color:var(--mag)} .doc .s{color:var(--lime)}
+.doc .rev{font:bold 10px var(--ui);color:var(--warn)}
+
+/* ---------- console ---------- */
+.term{flex:1;min-height:0;display:flex;flex-direction:column;background:#000;color:#ddd;font:11px/1.45 var(--mono);
+  --good:#7dff9b;--bad:#ff7b7b;--warn:#ffd24d;--lime:#c0ff6b;--accent:#8fd6ff;--role:#fff;--muted:#bbb;--dim:#8a8a8a;--ink:#fff}
+.audit{flex:1;overflow-y:auto;padding:6px 8px 2px;display:flex;flex-direction:column;gap:1px}
+.ev{display:grid;grid-template-columns:56px 1fr;gap:6px}
+.ev .t{color:var(--dim)}
+.ev .e{color:var(--ec,var(--accent));font-weight:bold}
+.ev .d{color:var(--muted)}
+.prompt{flex:0 0 auto;padding:2px 22px 4px 8px;color:#7dff9b;white-space:nowrap;overflow:hidden}
+.term .cur{display:inline-block;width:7px;height:12px;margin-left:2px;background:#7dff9b;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+.term pre{margin:0;padding:10px 12px;flex:1;overflow:auto;font:12px/1.6 var(--mono);white-space:pre-wrap;color:#ddd}
+.term .p{color:#7dff9b} .term .c{color:#9a9a9a} .term .e{color:#8fd6ff} .term .w{color:#ffd24d}
+.term .skip{flex:0 0 auto;display:flex;justify-content:flex-end;padding:6px 22px 8px 8px;border-top:1px solid #444}
+.term .btn{background:#000;color:#ddd;border-color:#ddd}
+
+/* ---------- the web browser ---------- */
+.btool{flex:0 0 auto;display:flex;gap:4px;align-items:center;padding:3px 6px;border-bottom:1px solid #000;background:#ddd}
+.btool .nav{all:unset;box-sizing:border-box;font:10px/1.2 var(--body);padding:2px 7px;border:1px solid #000;background:#fff;box-shadow:inset -1px -1px 0 #999}
+.btool .nav:active{background:#000;color:#fff}
+.btool .nav[disabled]{color:#999}
+.throb{margin-left:auto;width:24px;height:24px;border:1px solid #000;background:#000080;display:grid;place-items:center;color:#fff;font:bold 14px/1 var(--serif)}
+body.busy .throb{animation:throb .6s steps(2) infinite}
+@keyframes throb{50%{background:#fff;color:#000080}}
+.bloc{flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:3px 6px;border-bottom:1px solid #000;background:#ddd;font-size:11px}
+.bloc span{white-space:nowrap}
+.bloc output{flex:1;min-width:0;font:11px/1.5 var(--mono);padding:0 5px;border:1px solid #000;background:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 1px 1px 0 #999}
+.tabs{flex:0 0 auto;display:flex;gap:0;padding:4px 8px 0;border-bottom:1px solid #000;background:#ddd}
+.tab{all:unset;box-sizing:border-box;padding:1px 12px 2px;margin:0 -1px -1px 0;border:1px solid #000;border-radius:5px 5px 0 0;background:#bbb;font:bold 11px/1.4 var(--ui)}
+.tab[aria-selected="true"]{background:#c0c0c0;border-bottom-color:#c0c0c0}
+.tab[hidden]{display:none}
+.bpage{flex:1;overflow:auto;background:#c0c0c0;color:#000;font:15px/1.35 var(--serif);padding:10px 30px 30px 14px;user-select:text;-webkit-font-smoothing:auto}
+.bpage[hidden]{display:none}
+#title:not([hidden])~.bpage{display:none}
+.bstat{flex:0 0 auto;padding:1px 22px 1px 8px;border-top:1px solid #000;background:#ddd;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bpage h1{font:bold 26px/1.15 var(--serif)} .bpage h2{font:bold 20px/1.2 var(--serif);margin:12px 0 4px} .bpage h3{font:bold 16px/1.2 var(--serif);margin:14px 0 5px}
+.bpage hr{border:0;border-top:1px solid #808080;border-bottom:1px solid #fff;margin:10px 0}
+.bpage p{margin:0 0 8px}
+.bpage a,.bpage .lnk{color:#0000ee;text-decoration:underline;cursor:pointer}
+.bpage .lnk{all:unset;color:#0000ee;text-decoration:underline;cursor:pointer;font:inherit}
+.bpage .lnk:active{color:#ee0000}
+.bpage ul,.bpage ol{margin:0 0 8px;padding-left:28px}
+.bpage li{margin:2px 0}
+.bpage .hint{font:13px/1.3 var(--serif);color:#333}
+.bpage .mono,.bpage code{font-family:"Courier New",monospace;font-size:13px}
+.bpage kbd{font-size:11px}
+.bpage .btn{font:bold 12px/1.25 var(--ui);-webkit-font-smoothing:none}
+.bpage .tag{font:11px/1.3 "Courier New",monospace;text-transform:none;background:#c0c0c0}
+.bpage .tag.ph{background:#000}
+.kick{font:bold 12px/1.3 "Courier New",monospace;text-transform:uppercase;letter-spacing:.06em}
+.lede{font-size:16px}
+.foot{font-size:12px;font-style:italic;color:#333}
+.bpage address{font-size:12px}
+#title .setup{display:block}#title .home{display:none}
+#title.attract .setup{display:none}#title.attract .home{display:block}
+.home table{border:2px outset #eee;border-collapse:separate;border-spacing:2px;margin:6px 0 10px;font-size:14px}
+.home td,.home th{border:1px inset #eee;padding:3px 8px;text-align:left;vertical-align:top}
+.home .go1{font-size:19px;font-weight:bold}
+.profs,.roles{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:0 18px}
+#title .pc,#title .rc{all:unset;box-sizing:border-box;display:block;position:relative;padding:5px 6px 6px 26px;border-top:1px solid #808080;font:13px/1.3 var(--serif);cursor:pointer}
+#title .pc::before,#title .rc::before{content:"";position:absolute;left:5px;top:8px;width:11px;height:11px;border:1px solid #000;border-radius:50%;background:#fff}
+.pc[aria-checked="true"]::before,.rc[aria-checked="true"]::before{background:radial-gradient(circle,#000 0 3px,#fff 3.5px)}
+.pc[aria-checked="true"],.rc[aria-checked="true"]{background:#fff;outline:1px solid #000}
+.pc:focus-visible,.rc:focus-visible{outline:2px dotted #000;outline-offset:-2px}
+.pc .pt{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 8px;align-items:baseline}
+.pc .pt b,.rc b{font:bold 15px/1.2 var(--serif);color:#0000ee;text-decoration:underline}
+.pc .pt b .tag{text-decoration:none;display:inline-block;margin-left:4px;color:#000!important}
+.pc .cnt{font:12px "Courier New",monospace;white-space:nowrap}
+.pc small,.rc small{display:block;font-size:13px}
+.pc .ptag{font-weight:bold}
+.pc .sw{display:flex;flex-wrap:wrap;gap:0 9px;font:11px/1.4 "Courier New",monospace}
+.pc .sw i{font-style:normal}.pc .sw .n{color:#666}
+.pc .mini{display:flex;gap:1px;margin:3px 0 2px}
+.pc .mini i{width:5px;height:8px;border:1px solid #808080}
+.pc .mini i.on{background:#000;border-color:#000}
+.pc code{display:block}
+.rc .ava{float:right;width:26px;height:26px;border:1px solid #000;border-radius:50%;display:grid;place-items:center;background:var(--rc);color:#fff;font:bold 11px var(--ui)}
+.rc .rt{display:block;font:11px "Courier New",monospace;text-transform:uppercase}
+.otherprof{font-size:12px;font-style:italic;margin:6px 0}
+.comp{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+.ent{display:grid;grid-template-columns:230px 1fr 44px;gap:8px;align-items:center;font:12px "Courier New",monospace}
+.ent .t{height:10px;border:1px solid #000;background:#fff}
+.ent .t i{display:block;height:100%;width:0;background:#000;transition:width 1s steps(10)}
+.ent b{text-align:right}
+.bpage .card{border:2px outset #eee;padding:6px 9px;background:#c0c0c0;display:flex;flex-direction:column;gap:5px;margin:4px 0 8px}
+.go{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px}
+/* lifecycle page */
+.stagecard{border:2px outset #eee;background:#fff;padding:8px 10px;display:flex;flex-direction:column;gap:5px;margin:12px 0 8px}
+.stagecard:empty{display:none}
+.stagecard .sid{display:flex;gap:4px;flex-wrap:wrap}
+.stagecard h2{margin:2px 0 0}
+.stagecard p{margin:0;font-size:14px}
+.stagecard .why{font-style:italic;font-size:13px}
+.stagecard .tag{background:#fff}
+.track{display:flex;flex-wrap:wrap;gap:8px 4px;align-items:flex-start}
+.ph{display:flex;flex-direction:column;gap:3px;flex:0 0 auto}
+.ph .pn{font:bold 11px/1.2 "Courier New",monospace;text-transform:uppercase;display:flex;gap:5px;align-items:center}
+.ph .pn i{width:8px;height:8px;border:1px solid #000;background:var(--pc)}
+.ph.cur .pn{text-decoration:underline}
+.pips{display:flex;gap:2px}
+.pip{width:20px;height:18px;display:grid;place-items:center;font:11px/1 "Courier New",monospace;border:1px solid #000;background:#fff}
+.pip.skip{border-style:dotted;border-color:#808080;color:#808080;background:none}
+.pip.done{background:#000;color:#fff}
+.pip.now{background:var(--pc);font-weight:bold;outline:2px solid #000;outline-offset:1px;animation:blink 1s steps(2) infinite}
+.pip.loop{border-style:double;border-width:3px}
+.vg{flex:0 0 11px;width:11px;height:11px;transform:rotate(45deg);border:1px solid #000;background:#c0c0c0;margin:19px 6px 0}
+.vg.ok{background:#000}.vg.warn{background:#000 var(--dither);filter:invert(.5)}
+.trackmeta{flex:1 0 100%;font:12px "Courier New",monospace;display:flex;gap:8px}
+.trackmeta .k{text-transform:uppercase}
+.legendx{font-size:12px;font-style:italic;color:#333}
+/* intel page */
+.intel{display:flex;flex-direction:column;gap:6px}
+.intel section{margin:0}
+.intel h3{font:bold 16px/1.2 var(--serif)!important;letter-spacing:0!important;text-transform:none!important;color:#000}
+.intel dl{margin:0 0 6px}
+.intel dt{font-weight:bold;margin-top:4px}
+.intel dd{margin:0 0 0 22px}
+.intel .ck{font:bold 11px "Courier New",monospace;color:#000}
+
+/* ---------- dialogs, toasts ---------- */
+#cine{position:absolute;inset:0;z-index:8000;display:grid;place-items:center}
+#cine[hidden]{display:none}
+.cinebox,.dlg{position:relative;width:min(470px,calc(100% - 40px));padding:18px 22px 16px 74px;background:#fff;border:1px solid #000;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #000,2px 2px 0 #000;display:flex;flex-direction:column;gap:6px;min-height:92px}
+.cinebox .diamond,.dlg .dicn{position:absolute;left:24px;top:22px;width:30px;height:30px;border:2px solid #000;background:var(--cc,#fff);transform:rotate(45deg)}
+.cinebox .diamond::after,.dlg .dicn::after{content:"!";position:absolute;inset:0;display:grid;place-items:center;transform:rotate(-45deg);font:bold 18px var(--ui);color:#000;background:#fff;margin:5px;border-radius:50%}
+.cinebox .k{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.05em}
+.cinebox h2,.dlg h2{font:bold 15px/1.25 var(--ui)}
+.cinebox p,.dlg p{font-size:12px;line-height:1.4}
+.cinebox .checks{font:11px/1.6 var(--mono);border:1px solid #000;padding:4px 8px;margin-top:2px}
+.cinebox .checks .ok::before{content:"✓ "}.cinebox .checks .wa::before{content:"! "}
+.dlgwrap{position:absolute;inset:0;z-index:8500;display:grid;place-items:center}
+.dlg .row{justify-content:flex-end;margin-top:8px;gap:14px}
+.toasts{position:absolute;left:12px;bottom:12px;z-index:8800;display:flex;flex-direction:column-reverse;gap:6px;width:270px;pointer-events:none}
+.toast{padding:4px 9px 5px;background:#fff;border:1px solid #000;box-shadow:2px 2px 0 #000;font-size:11px;line-height:1.35}
+.toast.out{display:none}
+.toast .co{display:block;color:var(--muted)}
+.toast b.p,.toast b.m,.toast b.z{font:bold 12px var(--ui);margin-right:4px;padding:0 4px;border:1px solid #000}
+.toast b.m{background:#000;color:#fff}
+.toast.badge{border-width:2px}
+.floater{position:fixed;z-index:8900;pointer-events:none;font:bold 16px var(--ui);color:#000!important;background:#fff;border:1px solid #000;padding:0 4px;animation:float 1.1s steps(8) forwards}
+@keyframes float{to{transform:translateY(-44px);opacity:0}}
+#splash{position:absolute;inset:0;z-index:9500;display:grid;place-items:center;background:#a9afd9 var(--deskpat)}
+#splash div{padding:22px 46px 20px;background:#fff;border:1px solid #000;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #000,2px 2px 0 #000;text-align:center;font:bold 14px/1.5 var(--ui)}
+#splash small{display:block;font:11px var(--body)}
+#off{position:absolute;inset:0;z-index:9600;background:#000;color:#fff;display:grid;place-items:center;text-align:center;font:bold 14px/2 var(--ui)}
+#off .btn{background:#000;color:#fff;border-color:#fff}
+
+/* ---------- incident and debrief ---------- */
+.glass{border:1px solid #000;background:#fff}
+#boss>.wb,#debrief>.wb{overflow-y:auto;background:#ddd}
+#boss.shake{animation:shake .4s steps(4)}
+@keyframes shake{25%{transform:translate(-5px,2px)}50%{transform:translate(4px,-3px)}75%{transform:translate(-2px,2px)}}
+.bwrap,.dwrap{display:flex;flex-direction:column;gap:8px;padding:8px 24px 20px 8px}
+.bhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 10px;border-color:#000!important}
+.bhead h2{font-size:16px;color:#000!important}
+.bhead p{font-size:11px;color:var(--muted)}
+.bhead .tag{background:#000;color:#fff!important;font-weight:bold}
+.budget{margin-left:auto;min-width:240px;display:flex;flex-direction:column;gap:3px}
+.budget .l{display:flex;justify-content:space-between;font:bold 10px var(--ui);text-transform:uppercase}
+.budget .l b{font-size:13px}
+.budget .t{height:13px;border:1px solid #000;background:#fff}
+.budget .t i{display:block;height:100%;background:#000;transition:width .25s linear}
+.bgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px;align-items:start}
+.bpanel,.dpanel{padding:8px 10px;display:flex;flex-direction:column;gap:8px}
+.bpanel h3,.dpanel h3{font:bold 10px/1.3 var(--ui);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #000;padding-bottom:2px}
+.wave{display:flex;flex-direction:column;gap:5px}
+.wave .wn{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.wave .wn b{font:bold 16px var(--ui)}
+.wave .wn span{font:10px var(--mono)}
+.hp{height:16px;border:1px solid #000;background:#fff;position:relative}
+.hp i{display:block;height:100%;background:var(--red);transition:width .35s steps(6)}
+.hp em{position:absolute;inset:0;display:grid;place-items:center;font:bold 10px var(--mono);font-style:normal;color:#fff;text-shadow:1px 0 #000,-1px 0 #000,0 1px #000,0 -1px #000,1px 1px #000,-1px -1px #000,1px -1px #000,-1px 1px #000}
+.wdesc{font-size:12px}
+.rc2{font:11px/1.4 var(--mono);padding:4px 8px;border:1px dashed #000}
+.rc2.known{border:2px solid #000}
+.charts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.chart{border:1px solid #000;padding:4px 6px;display:flex;flex-direction:column;gap:2px;background:#fff}
+.chart .l{display:flex;justify-content:space-between;font:10px var(--body);text-transform:uppercase}
+.chart .l b{font:bold 11px var(--mono)}
+.chart canvas{width:100%;height:60px;display:block}
+.acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.act{all:unset;box-sizing:border-box;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:2px;padding:5px 8px 7px;border:1px solid #000;border-radius:7px;background:#fff;min-height:66px}
+.act:hover:not(.locked){box-shadow:inset 0 0 0 1px #000}
+.act:active:not(.locked){background:#ddd}
+.act .ah{display:flex;gap:6px;align-items:center}
+.act .ah .av{width:24px;height:20px;color:#fff;font-size:8px}
+.act b{font:bold 12px/1.2 var(--ui)}
+.act small{font-size:11px;line-height:1.3}
+.act .src{font:10px var(--mono);color:var(--muted)}
+.act .cd{position:absolute;inset:0;background:#000 var(--dither);opacity:.45;transform-origin:left;pointer-events:none}
+.act .cp{position:absolute;left:0;bottom:0;height:4px;width:0;background:#000}
+.act.casting{box-shadow:inset 0 0 0 2px #000}
+.act.locked{color:#888;border-style:dashed;border-color:#888}
+.act.locked .av{filter:grayscale(1);opacity:.5}
+.act.rec{border-width:3px}
+.act.rec::after{content:"RECOMMENDED";position:absolute;bottom:6px;right:7px;font:bold 9px var(--ui);background:#000;color:#fff;padding:0 4px}
+.blog{font:11px/1.45 var(--mono);max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;border:1px solid #000;padding:3px 6px}
+.blog .g{color:var(--good)} .blog .r{color:var(--bad);font-weight:bold} .blog .y{color:var(--warn)} .blog .c{color:var(--accent)}
+.loadout{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.lo{display:flex;gap:8px;align-items:flex-start}
+.lo i{font:bold 10px/1.6 var(--mono);font-style:normal;min-width:46px}
+.lo.off{color:#777}
+.lo span small{display:block;font:10px var(--mono);color:var(--muted)}
+.relax{display:flex;gap:7px;align-items:center;font-size:12px}
+.relax input{accent-color:#000}
+.chain{display:flex;flex-direction:column;gap:5px;font-size:12px}
+.chain div{display:grid;grid-template-columns:54px 1fr;gap:8px}
+.chain i{font:bold 10px/1.7 var(--mono);font-style:normal}
+.dhero{padding:12px 14px;display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap}
+.dhero .kick{font:bold 10px var(--ui)}
+.dhero .big{font:bold 64px/.95 var(--ui)}
+.dhero .rk{font:bold 20px/1.2 var(--ui)}
+.dhero p{font-size:12px}
+.dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.stat3{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.stat3 div{padding:4px 6px;border:1px solid #000}
+.stat3 b{display:block;font:bold 18px/1.1 var(--ui)}
+.stat3 span{font-size:10px}
+.badges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.bdg{display:flex;gap:7px;align-items:flex-start;padding:4px 6px;border:1px dotted #888;font-size:11px;color:#777}
+.bdg .ic{width:auto;height:auto;font-size:17px;line-height:1;filter:grayscale(1);opacity:.4}
+.bdg.on{border:1px solid #000;color:#000}
+.bdg.on .ic{filter:none;opacity:1}
+.bdg b{display:block;font:bold 11px var(--ui)}
+.v1v2{width:100%;border-collapse:collapse;font-size:11px}
+.v1v2 td,.v1v2 th{border-bottom:1px dotted #000;padding:3px 5px;text-align:left;vertical-align:top}
+.v1v2 th{font:bold 10px var(--ui);text-transform:uppercase}
+.plog{font-size:11px;max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.plog div{display:grid;grid-template-columns:44px 1fr;gap:6px}
+.plog b{font:bold 11px var(--mono);text-align:right}
+body.rm *,body.rm *::before,body.rm *::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+</style>
+</head>
+<body data-role="po" data-st="title">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-doc" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z" fill="#fff" stroke="#000"/><path d="M9.5 1.5v3h3" fill="none" stroke="#000"/><path d="M5.5 7.5h5M5.5 9.5h5M5.5 11.5h3" stroke="#888"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.5 13.5v-9h1l1-1.5h4l1 1.5h6v9z" fill="#ccccff" stroke="#000"/><path d="M1.5 6.5h13" stroke="#000"/></symbol>
+  <symbol id="i-hd" viewBox="0 0 16 16"><path d="M1.5 4.5h13v7h-13z" fill="#ddd" stroke="#000"/><path d="M1.5 9.5h13M3 11.5v1.5M13 11.5v1.5" stroke="#000"/><path d="M3.5 7.5h2" stroke="#000"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M4.5 5.5h7l-.6 9h-5.8z" fill="#fff" stroke="#000"/><path d="M3.5 4.5h9M6.5 4.5v-1.5h3v1.5M6.5 7.5v5M8 7.5v5M9.5 7.5v5" fill="none" stroke="#000"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#ccccff" stroke="#000"/><ellipse cx="8" cy="8" rx="2.8" ry="6.5" fill="none" stroke="#000"/><path d="M1.5 8h13M3 4.5h10M3 11.5h10" stroke="#000"/></symbol>
+  <symbol id="i-note" viewBox="0 0 16 16"><path d="M2.5 1.5h11v13h-11z" fill="#fff" stroke="#000"/><path d="M4.5 4.5h7M4.5 6.5h7M4.5 8.5h7M4.5 10.5h4" stroke="#000"/></symbol>
+  <symbol id="i-mac" viewBox="0 0 16 16"><path d="M2.5 1.5h11v11h-11z" fill="#fff" stroke="#000"/><path d="M4.5 3.5h7v5h-7z" fill="#ccccff" stroke="#000"/><path d="M3.5 12.5v2h9v-2M9 10.5h2.5" fill="none" stroke="#000"/></symbol>
+</svg>
+<div id="screen">
+  <div id="menubar">
+    <nav id="menus" aria-label="Menu bar">
+      <button class="mi logo" type="button" data-m="sys" aria-haspopup="true" aria-label="System menu">❖</button>
+      <button class="mi" type="button" data-m="file" aria-haspopup="true">File</button>
+      <button class="mi" type="button" data-m="edit" aria-haspopup="true">Edit</button>
+      <button class="mi" type="button" data-m="view" aria-haspopup="true">View</button>
+      <button class="mi" type="button" data-m="special" aria-haspopup="true">Special</button>
+      <button class="mi" type="button" data-m="win" aria-haspopup="true">Windows</button>
+    </nav>
+    <div id="banner" aria-live="polite"></div>
+    <div class="meters" id="meters" aria-label="Mission status"></div>
+  </div>
+
+  <div id="desktop">
+    <div class="dicons">
+      <button class="dicon" type="button" data-open="files" title="The aidlc record: every artifact the agents write"><svg class="ic big"><use href="#i-hd"/></svg><span>Aegle HD</span></button>
+      <button class="dicon" type="button" data-open="readme" title="How this desktop works"><svg class="ic big"><use href="#i-note"/></svg><span>Read Me</span></button>
+      <button class="dicon" type="button" data-open="web" title="The web browser"><svg class="ic big"><use href="#i-globe"/></svg><span>NetVoyager</span></button>
+      <button class="dicon" type="button" data-open="trash" title="Trash"><svg class="ic big"><use href="#i-trash"/></svg><span>Trash</span></button>
+    </div>
+
+    <!-- ===== WEB BROWSER: mission setup before the run, lifecycle and intel during it ===== -->
+    <section class="win" id="w-web" data-title="NetVoyager" aria-label="Web browser">
+      <div class="btool" aria-hidden="true"><button class="nav" type="button" tabindex="-1" disabled>◀ Back</button><button class="nav" type="button" tabindex="-1" disabled>Forward ▶</button><button class="nav" type="button" tabindex="-1" data-nav="home">Home</button><button class="nav" type="button" tabindex="-1" data-nav="reload">Reload</button><button class="nav" type="button" tabindex="-1" disabled>Images</button><button class="nav" type="button" tabindex="-1" disabled>Print</button><span class="throb">N</span></div>
+      <div class="bloc"><span>Location:</span><output id="loc">http://intranet.aegle.example/</output></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="t-setup" type="button" aria-selected="true">Mission Setup</button>
+        <button class="tab" role="tab" id="t-map" type="button" aria-controls="p-map" aria-selected="false" hidden>Lifecycle</button>
+        <button class="tab" role="tab" id="t-intel" type="button" aria-controls="p-intel" aria-selected="false" hidden>Intel</button>
+      </div>
+
+      <div class="bpage attract" id="title">
+        <div class="home">
+          <p class="kick">Unofficial simulator of AWS AI-DLC v2 · the desktop edition</p>
+          <h1 id="ttl">Aegle API Team: Mission Control</h1>
+          <hr>
+          <p class="lede">Lead one intent through the AI-Driven Development Life Cycle v2: from idea to production and back again. Fourteen AI agents do the work and message you on the team's trusty old workstation. Your team approves their work at every gate. Then production pushes back, and everything you approved decides how you fight it.</p>
+          <p class="go1">▶ <button class="lnk" id="attractBtn" type="button">Start a mission</button></p>
+          <p class="hint">14 agents · 5 humans · 33 stages · 6 pieces of work</p>
+          <h3>Previously, in v1</h3>
+          <p>The <b>Aegle API Team</b> used AI-DLC v1 to ship <b>ID-VEL-01</b>: a warning when one identity appears on many loan applications <i>at a single lender</i>. v1 stopped at Build and Test. Operations was a placeholder.</p>
+          <p><b>Now</b> the team runs AI-DLC v2, and the work keeps arriving: a network-wide warning that lenders want before quarter end, a brand-new product, a production bug, a security advisory, a refactor and a second region.</p>
+          <h3>How to play</h3>
+          <table>
+            <tr><th>1. Predict</th><td>Guess which agent leads each stage. Answer in the Conductor chat, or click the agent in the Buddies window.</td></tr>
+            <tr><th>2. Decide</th><td>Answer the questions the AI sends to your role. Your answers carry forward.</td></tr>
+            <tr><th>3. Gate</th><td>Open the artifacts from the <i>aidlc</i> folder, weigh the sensors and the reviewer, then approve or request changes.</td></tr>
+            <tr><th>4. Survive</th><td>Take on the production incident. What you approved earlier sets the tools you have.</td></tr>
+          </table>
+          <p class="hint">Keys: <kbd>1</kbd>–<kbd>4</kbd> pick a reply · <kbd>A</kbd> approve · <kbd>R</kbd> request changes · <kbd>Enter</kbd> continue after a teammate's stage · <kbd>Space</kbd> skip waiting · <kbd>M</kbd> sound on/off. Windows drag by their title bars and resize from the bottom-right corner.</p>
+          <hr>
+          <p class="foot">Illustrative scenario: the product, people and figures are made up for training. Stage names, lead, support and reviewer agents, sensors and scope switches are taken from <a href="https://github.com/awslabs/aidlc-workflows" target="_blank" rel="noopener">awslabs/aidlc-workflows</a> release 2.11.4. Scoring, gate ownership and the incident are game rules. This is an unofficial training game, not affiliated with or endorsed by AWS. The desktop is a made-up operating system and is not affiliated with any real one. <a href="https://github.com/kwe/aidlc-office" target="_blank" rel="noopener">Source on GitHub</a>.</p>
+        </div>
+        <div class="setup">
+          <h1>Mission setup</h1>
+          <p>Three choices, then launch. <button class="lnk" type="button" data-nav="home">Back to the home page</button></p>
+          <hr>
+          <h3 id="h-scen">1. Choose the work</h3>
+          <p class="hint">Six different pieces of work land on the Aegle API Team. Each one suits different scopes.</p>
+          <div class="profs" id="scens" role="radiogroup" aria-labelledby="h-scen"></div>
+          <hr>
+          <h3 id="h-prof">2. Choose a scope for it</h3>
+          <p class="hint">A scope, or workflow profile, is a stage list plus ceremony switches: sensors, reviewers, plan approval, collaborators.</p>
+          <div class="profs" id="profs" role="radiogroup" aria-labelledby="h-prof"></div>
+          <div class="otherprof" id="otherprof"></div>
+          <div class="comp" id="composer">
+            <div class="row"><button class="btn small" id="askComposer" type="button">Ask the Composer agent</button><span class="hint">Not sure? <code>/aidlc compose</code> has the Composer score five kinds of uncertainty in the work and propose a tailored plan.</span></div>
+            <div id="entropy" class="comp"></div>
+          </div>
+          <hr>
+          <h3 id="h-role">3. Choose your seat on the team</h3>
+          <div class="roles" id="roles" role="radiogroup" aria-labelledby="h-role"></div>
+          <hr>
+          <div class="go">
+            <button class="btn primary" id="startBtn" type="button">Launch mission</button>
+            <span class="hint" id="startHint"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bpage" id="p-map" role="tabpanel" aria-labelledby="t-map">
+        <p class="kick" id="intentLine">intent</p>
+        <nav class="track" id="track" aria-label="Lifecycle progress"></nav>
+        <div class="stagecard" id="stagecard"></div>
+        <p class="legendx">Filled boxes are finished stages, the blinking one is running now, dotted ones are not in this scope. A diamond is the traceability check at the end of a phase.</p>
+      </div>
+      <div class="bpage" id="p-intel" role="tabpanel" aria-labelledby="t-intel" hidden><h1>Intel</h1><div class="intel" id="intel"></div></div>
+      <div class="bstat" id="bstat">Document: Done.</div>
+    </section>
+
+    <!-- ===== BOOT ===== -->
+    <section class="win" id="boot" hidden data-title="Console: copilot" data-close="0" aria-label="Terminal">
+      <div class="term" role="log" aria-live="polite"><pre id="termtext"></pre><div class="skip"><button class="btn small" id="bootSkip" type="button">Skip intro</button></div></div>
+    </section>
+
+    <!-- ===== THE RUN ===== -->
+    <div id="app" hidden>
+      <section class="win" id="w-con" data-title="Conductor" data-ttid="conTitle" data-close="0" aria-label="Chat with the Conductor: your decisions">
+        <div id="con" aria-live="polite"></div>
+      </section>
+      <section class="win" id="w-team" data-title="Team Room" aria-label="Team chat">
+        <div class="feed" id="feed" aria-live="polite"></div>
+        <div class="cinput">Agents and teammates talk here. What needs you arrives in the Conductor window.</div>
+      </section>
+      <section class="win" id="w-buds" data-title="Buddies" aria-label="Who is doing what">
+        <div id="buds"></div>
+      </section>
+      <section class="win" id="w-files" data-title="aidlc" aria-label="Artifacts">
+        <div class="fhead"><span id="fpath">aidlc</span><span id="fcount">0 items</span></div>
+        <div class="fcols" aria-hidden="true"><span>Name</span><span>Kind</span><span>Rev</span></div>
+        <div id="finder"></div>
+      </section>
+      <section class="win" id="w-audit" data-title="Console: audit" aria-label="Audit log">
+        <div class="term"><div class="audit" id="audit"></div><div class="prompt">aegle-api $ <span id="cmdline">/aidlc --status</span><i class="cur"></i></div></div>
+      </section>
+    </div>
+
+    <!-- ===== INCIDENT ===== -->
+    <section class="win modal" id="boss" hidden data-title="Incident Monitor" data-close="0" role="dialog" aria-modal="true" aria-labelledby="bossTitle"><div class="bwrap" id="bwrap"></div></section>
+    <!-- ===== DEBRIEF ===== -->
+    <section class="win modal" id="debrief" hidden data-title="Mission Debrief" data-close="0" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="dwrap" id="dwrap"></div></section>
+    <!-- ===== PHASE CHECKS AND OTHER ANNOUNCEMENTS ===== -->
+    <div id="cine" hidden aria-live="assertive"><div class="cinebox" id="cinebox"></div></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+  </div>
+  <div id="splash"><div><svg class="ic big"><use href="#i-mac"/></svg><br>Welcome to Aegle System 7<small>a made-up operating system</small></div></div>
+</div>
+
+<!-- Elements the shared engine expects but this edition has no use for (the 3D office, its tour, the theme switch). -->
+<div id="compat" hidden>
+  <button class="speed" id="speedBtn" type="button"></button><button class="sndT" id="sndBtn" type="button"></button><button class="sndT" id="tSnd" type="button"></button>
+  <button id="pauseBtn" type="button"></button><button id="motBtn" type="button"></button><button id="thmBtn" type="button"></button><button id="tThm" type="button"></button><button id="exitBtn" type="button"></button>
+  <div id="tree"></div><div id="viewer"></div><div id="ticker"></div>
+  <div id="tour" hidden><button id="tourNext" type="button"></button><button id="tourBack" type="button"></button><button id="tourSkip" type="button"></button></div>
+  <button id="tourBtn" type="button"></button><button id="tourBtn2" type="button"></button>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   The desktop: window manager, menus, file browser, editor, buddies.
+   It runs before the engine and hands it window.SKIN, the engine's hook
+   for the places where it would otherwise drive the office layout.
+   Engine globals (S, PEOPLE, AGENTS, openFile, ...) are read only inside
+   functions that run after the engine has loaded.
+   ===================================================================== */
+(()=>{
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const el=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ic=(n,big)=>`<svg class="ic${big?' big':''}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const desk=$('#desktop');
+const Q=new URLSearchParams(location.search);
+
+/* ---------------- window manager ---------------- */
+let zTop=10,active=null;
+const user={};          // rects the player has set by dragging, keyed by window id and layout mode
+const mode=()=>document.body.dataset.st==='game'?'game':'title';
+function chrome(w){
+  if(w._wm)return w;w._wm=true;
+  const body=el('div','wb');while(w.firstChild)body.appendChild(w.firstChild);
+  const tb=el('header','tb',`${w.dataset.close==='0'?'<span class="nb"></span>':'<button class="cb" type="button" tabindex="-1" aria-label="Close window"></button>'}<span class="wtt"${w.dataset.ttid?` id="${w.dataset.ttid}"`:''}>${esc(w.dataset.title||'')}</span><button class="zb" type="button" tabindex="-1" aria-label="Zoom window"></button>`);
+  const grow=el('i','grow');
+  w.append(tb,body,grow);
+  w.addEventListener('pointerdown',()=>raise(w),true);
+  const cb=tb.querySelector('.cb');if(cb)cb.onclick=()=>close(w);
+  tb.querySelector('.zb').onclick=()=>zoom(w);
+  tb.addEventListener('dblclick',e=>{if(!e.target.closest('button'))zoom(w)});
+  drag(tb,w,false);drag(grow,w,true);
+  return w;
+}
+function drag(h,w,size){
+  h.addEventListener('pointerdown',e=>{
+    if(e.button||e.target.closest('button'))return;
+    e.preventDefault();h.setPointerCapture(e.pointerId);
+    const x0=e.clientX,y0=e.clientY,r=[w.offsetLeft,w.offsetTop,w.offsetWidth,w.offsetHeight];let moved=false;
+    const mv=ev=>{const dx=ev.clientX-x0,dy=ev.clientY-y0;if(!moved&&Math.abs(dx)+Math.abs(dy)<3)return;moved=true;
+      if(size)setRect(w,[r[0],r[1],Math.max(220,r[2]+dx),Math.max(110,r[3]+dy)]);
+      else setRect(w,[clamp(r[0]+dx,60-r[2],desk.clientWidth-60),clamp(r[1]+dy,0,desk.clientHeight-22),r[2],r[3]]);};
+    const up=()=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);
+      if(!moved)return;      // a click, not a drag: the window keeps its zoom state and its saved place
+      w._zoom=null;if(w.id)user[w.id+':'+mode()]=[w.offsetLeft,w.offsetTop,w.offsetWidth,w.offsetHeight]};
+    h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+  });
+}
+function setRect(w,[x,y,ww,hh]){w.style.left=x+'px';w.style.top=y+'px';w.style.width=ww+'px';w.style.height=hh+'px'}
+function raise(w){
+  if(!w)return;
+  if(active!==w){if(active)active.classList.remove('active');active=w;w.classList.add('active')}
+  if(+w.style.zIndex!==zTop)w.style.zIndex=++zTop;
+}
+function show(w){if(!w)return;w.classList.remove('closed');raise(w)}
+function close(w){
+  if(w.dataset.close==='0')return;
+  if(w._onclose)w._onclose();else w.classList.add('closed');
+  if(active===w){w.classList.remove('active');active=null;const top=wins().filter(x=>x!==w&&visible(x)).sort((a,b)=>b.style.zIndex-a.style.zIndex)[0];if(top)raise(top)}
+}
+function zoom(w){
+  if(w._zoom){setRect(w,w._zoom);w._zoom=null;return}
+  w._zoom=[w.offsetLeft,w.offsetTop,w.offsetWidth,w.offsetHeight];setRect(w,[3,3,desk.clientWidth-8,desk.clientHeight-8]);
+}
+const wins=()=>$$('#desktop .win');
+const visible=w=>!w.hidden&&!w.classList.contains('closed')&&w.offsetParent!==null;
+/* Where each window sits until the player moves it. Three columns: decisions and the console on the left,
+   the browser over the file browser in the middle, team chat over the buddy list on the right. */
+function rects(){
+  const W=desk.clientWidth,H=desk.clientHeight,g=6;
+  const lw=clamp(Math.round(W*.29),330,400),rw=clamp(Math.round(W*.255),290,340),cw=W-lw-rw-4*g;
+  const ah=clamp(Math.round(H*.21),120,190),bh=clamp(Math.round(H*.36),230,290),wh=Math.round((H-3*g)*.53);
+  const mid=(w,h)=>[Math.round((W-w)/2),Math.max(4,Math.round((H-h)/2.4)),w,h];
+  return{game:{
+      'w-con':[g,g,lw,H-ah-3*g-2],'w-audit':[g,H-ah-g-2,lw,ah],
+      'w-web':[lw+2*g,g,cw,wh],'w-files':[lw+2*g,wh+2*g,cw,H-wh-3*g-2],
+      'w-team':[W-rw-g-2,g,rw,H-bh-3*g-2],'w-buds':[W-rw-g-2,H-bh-g-2,rw,bh]},
+    title:{'w-web':mid(Math.min(980,W-120),H-34)},
+    boot:mid(Math.min(700,W-80),Math.min(420,H-60)),boss:[12,6,W-28,H-18],debrief:mid(Math.min(1040,W-60),H-30),
+    ed:n=>[lw+2*g+12+n*22,30+n*22,clamp(cw-84,430,560),Math.min(480,H-110)]};
+}
+function layout(){
+  const R=rects(),m=mode();
+  for(const [id,r] of Object.entries(R[m]))setRect($('#'+id),user[id+':'+m]||r);
+  setRect($('#boot'),R.boot);setRect($('#boss'),R.boss);setRect($('#debrief'),R.debrief);
+  wins().forEach(w=>{w._zoom=null});
+}
+function cleanUp(){for(const k in user)delete user[k];layout();$$('.win.ed').forEach(w=>setRect(w,rects().ed(w._slot)))}
+
+/* ---------------- what the engine is showing ---------------- */
+function state(){
+  const st=!$('#title').hidden?'title':!$('#boot').hidden?'boot':!$('#app').hidden?'game':'idle';
+  if(st===document.body.dataset.st)return;
+  document.body.dataset.st=st;
+  const game=st==='game';
+  $('#t-setup').hidden=game;$('#t-map').hidden=$('#t-intel').hidden=!game;
+  $('#w-web').classList.toggle('closed',st==='boot'||st==='idle');
+  if(game){['w-con','w-team','w-buds','w-files','w-audit'].forEach(id=>$('#'+id).classList.remove('closed'));page('map');buddies()}
+  else page('setup');
+  layout();
+  if(st==='title')raise($('#w-web'));
+  if(game){raise($('#w-web'));raise($('#w-con'))}
+}
+function page(n){
+  const t=!$('#title').hidden;
+  if(t)n='setup';else if(n==='setup')n='map';      // the setup page exists only while the engine is showing it
+  ['setup','map','intel'].forEach(k=>$('#t-'+k).setAttribute('aria-selected',k===n));
+  $('#p-map').hidden=n!=='map';$('#p-intel').hidden=n!=='intel';
+  $('#loc').textContent='http://intranet.aegle.example/'+(n==='setup'?($('#title').classList.contains('attract')?'':'aidlc/setup.html'):n==='map'?'aidlc/lifecycle.html':'aidlc/intel.html');
+}
+new MutationObserver(ms=>{
+  state();
+  for(const m of ms){const t=m.target;
+    if(m.attributeName==='hidden'&&t.classList.contains('win')&&!t.hidden)show(t);
+    if(m.attributeName==='class'&&t.id==='title'&&!t.hidden)page('setup')}
+}).observe(desk,{attributes:true,attributeFilter:['hidden','class'],subtree:true});
+/* anything that needs the player's answer brings the Conductor window to the front */
+new MutationObserver(ms=>{if(ms.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&n.classList.contains('mine'))))show($('#w-con'))}).observe($('#con'),{childList:true});
+/* the browser's throbber spins while agents are working */
+setInterval(()=>{const t=$('#turn');document.body.classList.toggle('busy',mode()==='game'&&!!t&&!t.classList.contains('me'));
+  const s=$('#bstat');if(s&&mode()==='game'&&t)s.textContent=t.classList.contains('me')?'Document: Done. Waiting for you in the Conductor window.':'Transferring data from the Conductor…'},400);
+
+/* ---------------- file browser and editor ---------------- */
+const collapsed=new Set(),eds=new Map();
+let sel=null,lastN=0;
+const KIND={md:'Markdown document',json:'JSON document',yml:'YAML document',yaml:'YAML document',ts:'TypeScript source'};
+function files(){
+  const fs=Object.values(S.files).sort((a,b)=>a.ord-b.ord);
+  const root={d:{},f:[],k:''};
+  for(const f of fs){const parts=f.p.split('/');parts.pop();let n=root;for(const s of parts)n=n.d[s]=n.d[s]||{d:{},f:[],k:n.k+s+'/'};n.f.push(f)}
+  let top=root;const chain=[];
+  while(Object.keys(top.d).length===1&&!top.f.length){const k=Object.keys(top.d)[0];chain.push(k);top=top.d[k]}
+  let h='';
+  (function walk(n,d){
+    for(const k of Object.keys(n.d)){let c=n.d[k],label=k;
+      while(Object.keys(c.d).length===1&&!c.f.length){const k2=Object.keys(c.d)[0];label+='/'+k2;c=c.d[k2]}
+      const open=!collapsed.has(c.k);
+      h+=`<button class="frow dir" type="button" data-k="${esc(c.k)}" aria-expanded="${open}" style="--d:${d}"><span class="nm"><span class="tri">${open?'▼':'▶'}</span>${ic('folder')}<b>${esc(label)}</b></span><span class="kd">folder</span><span class="rv"></span></button>`;
+      if(open)walk(c,d+1)}
+    for(const f of n.f){const nm=f.p.split('/').pop(),un=!f.seen&&!f.opt;
+      h+=`<button class="frow file${un?' unread':''}${sel===f.p?' sel':''}" type="button" data-p="${esc(f.p)}" style="--d:${d}" title="Double-click to open"><span class="nm"><span class="tri"></span>${ic('doc')}<b>${esc(nm)}</b>${f.isNew&&!f.seen?'<span class="nw">NEW</span>':''}</span><span class="kd">${KIND[nm.split('.').pop()]||'document'}</span><span class="rv">${f.rev>1?'rev '+f.rev:''}</span></button>`}
+  })(top,0);
+  const box=$('#finder');box.innerHTML=h||'<div class="fempty">No artifacts yet. They appear here as the agents write them.</div>';
+  const un=fs.filter(f=>!f.seen&&!f.opt).length;
+  $('#fpath').textContent=chain.join(' ▸ ')||'aidlc';
+  $('#fcount').textContent=`${fs.length} item${fs.length===1?'':'s'}${un?` · ${un} unread`:''} · double-click to open`;
+  if(fs.length>lastN){const last=box.querySelector(`[data-p="${CSS.escape(fs[fs.length-1].p)}"]`);if(last)box.scrollTop=Math.max(0,last.offsetTop-box.clientHeight+40)}
+  lastN=fs.length;
+  for(const [p,w] of eds){const f=S.files[p];if(f)fill(w,f)}
+}
+$('#finder').addEventListener('click',e=>{const r=e.target.closest('.frow');if(!r)return;
+  if(r.dataset.k!==undefined){collapsed.has(r.dataset.k)?collapsed.delete(r.dataset.k):collapsed.add(r.dataset.k);files();return}
+  sel=r.dataset.p;$$('#finder .frow.sel').forEach(x=>x.classList.remove('sel'));r.classList.add('sel')});
+$('#finder').addEventListener('dblclick',e=>{const r=e.target.closest('.frow.file');if(r)openFile(r.dataset.p)});
+$('#finder').addEventListener('keydown',e=>{const r=e.target.closest('.frow');if(!r)return;
+  if(e.key==='Enter'&&r.dataset.p){e.preventDefault();e.stopPropagation();openFile(r.dataset.p)}
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();const all=$$('#finder .frow'),i=all.indexOf(r)+(e.key==='ArrowDown'?1:-1);if(all[i]){all[i].focus();all[i].click()}}});
+function editor(key,title){
+  let w=eds.get(key);if(w)return w;
+  if(eds.size>=4){const old=[...eds.values()].sort((a,b)=>a.style.zIndex-b.style.zIndex)[0];old._onclose()}
+  w=el('section','win ed');w.dataset.title=title;w.setAttribute('aria-label','Editor: '+title);
+  w.innerHTML='<div class="edbar"><bdi></bdi></div><div class="eddoc"><div class="doc"></div></div>';
+  desk.appendChild(chrome(w));
+  const used=new Set([...eds.values()].map(x=>x._slot));let slot=0;while(used.has(slot))slot++;
+  w._slot=slot;setRect(w,rects().ed(slot));
+  w._onclose=()=>{eds.delete(key);w.remove();if(typeof S!=='undefined'&&S.viewing===key)S.viewing=null};
+  eds.set(key,w);return w;
+}
+function fill(w,f){
+  const html=f.b();if(w._html===html&&w._rev===f.rev)return;
+  w._html=html;w._rev=f.rev;
+  w.querySelector('.wtt').textContent=f.p.split('/').pop()+(f.rev>1?`  (rev ${f.rev})`:'');
+  w.querySelector('.edbar bdi').textContent=f.p;
+  w.querySelector('.doc').innerHTML=html;
+}
+function openEd(f,keep){
+  if(keep&&!eds.has(f.p))return;      // a revision only refreshes a document that is already open
+  const w=editor(f.p,f.p.split('/').pop());fill(w,f);
+  if(!keep){sel=f.p;show(w)}
+}
+const README=`<h4>Welcome to the Aegle API Team workstation</h4>
+<p>This desktop is where one piece of work, an <b>intent</b>, travels through the five phases of AI-DLC v2. Fourteen AI agents do the work. Five people own the decisions, and you are one of them.</p>
+<h4>The windows</h4>
+<table><tr><th>Window</th><th>What it is for</th></tr>
+<tr><td><b>Conductor</b></td><td>Everything that needs <i>you</i> arrives here as a message: predicting the lead agent, questions for your role, your approval gates, and the pause after a teammate's stage. Reply with the buttons or the keys shown on them.</td></tr>
+<tr><td><b>Team Room</b></td><td>Agents and teammates talking. Nothing here needs an answer.</td></tr>
+<tr><td><b>Buddies</b></td><td>Who is leading, supporting or reviewing the current stage, and who is at the gate. When you are asked who leads a stage, you can click an agent here.</td></tr>
+<tr><td><b>aidlc</b></td><td>The record: every artifact the agents write. Double-click a document to open it in the editor. Bold names are unread.</td></tr>
+<tr><td><b>NetVoyager</b></td><td>The team intranet. <i>Lifecycle</i> shows the current stage and the map of all 33. <i>Intel</i> explains scopes, sensors, gates and agents.</td></tr>
+<tr><td><b>Console</b></td><td>The audit log, one line per workflow event.</td></tr></table>
+<h4>Getting around</h4>
+<ul><li>Drag a window by its title bar. Resize it from the bottom-right corner. The box on the right of the title bar zooms it.</li>
+<li>Closed a window? The <b>Windows</b> menu brings it back, and <b>Special ▸ Clean Up Windows</b> puts everything back in place.</li>
+<li>The <b>View</b> menu sets the speed, the sound, and whether the game pauses after each teammate's stage.</li></ul>
+<h4>Keys</h4>
+<p><kbd>1</kbd>–<kbd>4</kbd> pick a reply · <kbd>A</kbd> approve · <kbd>R</kbd> request changes · <kbd>Enter</kbd> continue after a teammate's stage · <kbd>Space</kbd> skip waiting · <kbd>M</kbd> sound on/off</p>
+<h4>One piece of advice</h4>
+<p>When a gate is yours, read the artifacts before you approve. Approving without reading is a rubber stamp, and production remembers.</p>`;
+function readme(){const w=editor('readme','Read Me');fill(w,{p:'Aegle HD/Read Me',rev:1,b:()=>README});show(w)}
+
+/* ---------------- buddies: who is doing what (stands in for the 3D office) ---------------- */
+let stage=null,gateRole=null,cand=null;const moods={};
+function buddies(){
+  const box=$('#buds');if(!box||typeof AGENTS==='undefined')return;
+  const role=k=>!stage?'':stage.pending?'':stage.lead===k?'leading':(stage.col||[]).includes(k)?'supporting':stage.rev===k?'reviewing':'';
+  const ppl=ROLE_ORDER.map(k=>{const p=PEOPLE[k],st=gateRole===k?'at the gate':moods[k]==='think'?'answering a question':'';
+    return`<div class="bud${st||k===S.role?' on':''}" data-k="@${k}" title="${esc(p.t+'. '+p.brief)}"><i class="av h" style="--ac:var(--${k})">${p.ini}</i><span><b>${esc(p.n)}${k===S.role?' (you)':''}</b><small>${st||esc(p.t)}</small></span></div>`}).join('');
+  const ags=AG_ORDER.map(k=>{const a=AGENTS[k],r=role(k),c=cand&&cand.keys.includes(k);
+    return`<${c?'button type="button"':'div'} class="bud${r?' on':''}${c?' cand':''}" data-k="${k}" title="${esc(a.d)}"><i class="av" style="--ac:${a.c}">${k}</i><span><b>${esc(a.n)}</b><small>${c?'leads this stage?':r||(a.k==='r'?'reviewer':a.k==='s'?'support only':'idle')}</small></span></${c?'button':'div'}>`}).join('');
+  box.innerHTML=`<div class="bgrp">People · ${ROLE_ORDER.length}</div><div class="bcols">${ppl}</div><div class="bgrp" style="margin-top:6px">Agents · ${AG_ORDER.length}${stage&&stage.id?` · stage ${stage.id}`:''}</div><div class="bcols">${ags}</div>`;
+}
+$('#buds').addEventListener('click',e=>{const b=e.target.closest('.bud.cand');if(b&&cand)cand.cb(b.dataset.k)});
+function pulse(k){const b=$(`#buds [data-k="${k}"]`);if(!b)return;b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),260)}
+const net={
+  setStage(o){stage=o;buddies()},
+  gate(s,role){gateRole=s===1?role:null;buddies()},
+  humanMood(k,m){moods[k]=m;buddies()},
+  pick(keys,cb){cand=keys?{keys,cb}:null;buddies()},
+  pulse,
+};
+
+/* ---------------- menus and dialogs ---------------- */
+function dialog({h,p,buttons}){
+  return new Promise(res=>{
+    const wrap=el('div','dlgwrap',`<div class="dlg" role="alertdialog" aria-modal="true"><i class="dicn"></i><h2>${h}</h2>${p?`<p>${p}</p>`:''}<div class="row">${buttons.map((b,i)=>`<button class="btn${i===buttons.length-1?' primary':''}" type="button" data-i="${i}">${b}</button>`).join('')}</div></div>`);
+    desk.appendChild(wrap);
+    const done=i=>{wrap.remove();res(i)};
+    wrap.querySelectorAll('button').forEach(b=>b.onclick=()=>done(+b.dataset.i));
+    wrap.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape')done(0)});
+    wrap.querySelector('.btn.primary').focus();
+  });
+}
+const game=()=>mode()==='game';
+const setSpeed=v=>{S.speed=v;PREFS.speed=v;savePrefs()};
+const MENUS={
+  sys:()=>[['About This Simulator…',()=>dialog({h:'AI-DLC v2 · Mission Control',p:'The desktop edition. An unofficial training game about the AWS AI-Driven Development Life Cycle v2, not affiliated with or endorsed by AWS.<br><br>“Aegle System 7” is a made-up operating system and is not affiliated with any real one. The product, people and figures in the story are made up too.',buttons:['OK']})],
+    ['Read Me',readme]],
+  file:()=>[['Open “aidlc” Folder',()=>show($('#w-files')),{off:!game()}],['Open Read Me',readme],null,
+    ['Close Window',()=>active&&close(active),{off:!active||active.dataset.close==='0'}]],
+  edit:()=>[['Undo',0,{off:1}],null,['Cut',0,{off:1}],['Copy',0,{off:1}],['Paste',0,{off:1}],['Clear',0,{off:1}]],
+  view:()=>[...[1,2,4].map(v=>[`Speed ${v}×`,()=>setSpeed(v),{chk:(S.speed||1)===v}]),null,
+    ['Sound',()=>$('#sndBtn').click(),{chk:AUD.on,key:'M'}],
+    ['Motion Effects',()=>$('#motBtn').click(),{chk:S.motion}],
+    ['Pause After Each Teammate Stage',()=>$('#pauseBtn').click(),{chk:pausing()}]],
+  special:()=>[['Clean Up Windows',cleanUp],['Skip Waiting',()=>skipWait(),{off:!game(),key:'Space'}],null,
+    ['Restart Mission…',async()=>{if(await dialog({h:'Abandon this mission?',p:'You will go back to Mission Setup. The run so far is not saved.',buttons:['Cancel','Restart']}))toTitle()},{off:!game()}],
+    ['Shut Down',shutDown]],
+  win:()=>{const modal=!!$('#desktop>.modal:not([hidden])');   // while the incident or the debrief is up, nothing else can come forward
+    return wins().filter(w=>!w.hidden&&(w.closest('#app')?game():true)&&!(w.id==='w-web'&&document.body.dataset.st==='boot'))
+      .map(w=>[w.querySelector('.wtt').textContent,()=>show(w),{chk:w===active,off:modal&&!w.classList.contains('modal')}])},
+};
+let openMenu=null;
+function closeMenu(){if(!openMenu)return;openMenu.m.remove();openMenu.b.setAttribute('aria-expanded','false');openMenu=null}
+function menu(b){
+  const was=openMenu&&openMenu.b===b;closeMenu();if(was)return;
+  const m=el('div','menu');m.setAttribute('role','menu');
+  for(const it of MENUS[b.dataset.m]()){
+    if(!it){m.appendChild(el('hr'));continue}
+    const [label,fn,o={}]=it,x=el('button',o.chk?'chk':'',`<span>${esc(label)}</span>${o.key?`<span class="key">${o.key}</span>`:''}`);
+    x.type='button';x.setAttribute('role','menuitem');if(o.off||!fn)x.disabled=true;
+    x.onclick=()=>{closeMenu();fn()};m.appendChild(x);
+  }
+  m.style.left=Math.max(0,b.offsetLeft+10)+'px';$('#menubar').appendChild(m);b.setAttribute('aria-expanded','true');openMenu={m,b};
+}
+$$('#menus .mi').forEach(b=>{b.onclick=()=>menu(b);b.onpointerenter=()=>{if(openMenu&&openMenu.b!==b)menu(b)}});
+addEventListener('pointerdown',e=>{if(openMenu&&!e.target.closest('#menubar'))closeMenu()},true);
+addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+function shutDown(){
+  const o=el('div','',`<div>It is now safe to close this tab.<br><button class="btn" type="button">Restart</button></div>`);o.id='off';
+  $('#screen').appendChild(o);o.querySelector('button').onclick=()=>location.reload();
+  if(game())toTitle();
+}
+$$('.dicon').forEach(b=>{b.ondblclick=b.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=b.dataset.open;
+  if(k==='readme')readme();else if(k==='web')show($('#w-web'));
+  else if(k==='files'){if(game())show($('#w-files'));else dialog({h:'The disk is quiet.',p:'The “aidlc” folder fills up once a mission is running. Start one from the NetVoyager window.',buttons:['OK']})}
+  else dialog({h:'The Trash is empty.',p:'Nothing in AI-DLC is thrown away: every decision and every revision stays in the audit log.',buttons:['OK']})}});
+$$('[data-nav]').forEach(b=>b.addEventListener('click',()=>{if(game()){page('map');return}
+  if(b.dataset.nav==='home'){$('#title').classList.add('attract');$('#title').scrollTop=0}}));
+
+/* ---------------- start ---------------- */
+wins().forEach(chrome);
+layout();raise($('#w-web'));
+addEventListener('resize',cleanUp);
+const splash=$('#splash');
+if(Q.get('auto')||Q.get('nosplash'))splash.remove();
+else{const bye=()=>splash.remove();setTimeout(bye,1500);splash.onpointerdown=bye}
+
+window.SKIN={
+  files,openFile:openEd,net,
+  tab(n){
+    if(n==='files')show($('#w-files'));else if(n==='audit')show($('#w-audit'));
+    else if(n==='comms'){page('map')}
+    else{page(n==='intel'?'intel':'map');if(n==='intel'||n==='map')raise($('#w-web'))}
+  },
+  reset(){for(const [k,w] of [...eds])if(k!=='readme')w._onclose();collapsed.clear();sel=null;lastN=0;stage=null;gateRole=null;cand=null;for(const k in moods)delete moods[k];files();buddies()},
+  txt:{
+    predict:'Which agent leads this stage? Pick a reply, press its number, or click the agent in the Buddies window.',
+    pauseFiles:'What this stage wrote (the aidlc folder keeps everything):',
+    pauseOff:'Nothing moves until you continue. View ▸ Pause After Each Teammate Stage turns this pause off.',
+    conTitle:p=>`Conductor ⇄ ${p.n} (${p.t})`,
+    auditWhere:'See the Console window for the live view.',
+  },
+};
+window.WM={show,raise,layout,cleanUp};
+})();
+</script>
+<script>
+/*__ENGINE__*/
+</script>
+</body>
+</html>

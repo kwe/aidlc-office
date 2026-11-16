@@ -1,5 +1,6 @@
 // Checks every scenario's data, then plays each scenario under each scope it offers, to the debrief, with the autoplay harness.
-// Usage: npm run playtest                 (every scenario x its scopes x three play styles)
+// Usage: npm run playtest                 (every scenario x its scopes x three play styles, office edition)
+//        npm run playtest:retro           (the same, against the retro desktop edition; or --file=<built game>)
 //        npm run playtest -- bug infra    (only these scenarios; scope names filter too: npm run playtest -- bug express)
 //        npm run playtest -- --all-seats  (also play the worst answers from every one of the five seats)
 import puppeteer from 'puppeteer-core';
@@ -7,7 +8,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const GAME = pathToFileURL(path.resolve('v3.html')).href;
+const FILE = (process.argv.find(a => a.startsWith('--file=')) || '--file=v3.html').slice(7);
+const GAME = pathToFileURL(path.resolve(FILE)).href;
 const ROLES = ['po', 'eng', 'pm', 'ops', 'sec'];
 const MODES = ['1', 'fix', 'bad'];
 const allSeats = process.argv.includes('--all-seats');
@@ -89,7 +91,7 @@ async function run({ scen, prof, auto, role }) {
     const r = await page.evaluate(() => {
       const broken = [];   // every artifact must still render at the end of the run
       for (const f of Object.values(S.files)) { try { if (f.b && typeof f.b() !== 'string') broken.push(f.p); } catch (e) { broken.push(f.p + ': ' + e.message); } }
-      return { d: window.__done, err: window.__err ? String(window.__err.stack || window.__err) : '', broken, undef: [...window.__pkLog] };
+      return { d: window.__done, err: window.__err ? String(window.__err.stack || window.__err) : '', broken, undef: [...window.__pkLog], blocked: window.__blocked || [] };
     });
     const notes = [];
     if (r.broken.length) notes.push('artifacts that fail to render: ' + r.broken.join(', '));
@@ -99,6 +101,8 @@ async function run({ scen, prof, auto, role }) {
     if (auto === '1' && prof === bestOf[scen] && r.d && r.d.boss && !r.d.boss.won) notes.push('best answers on the best-fit scope did not hold the incident');
     // every teammate-gated stage must hold for the player (the harness presses Continue); zero would mean the pause never ran
     if (r.d && (r.d.pauses < r.d.teamGates || (r.d.teamGates > 0 && !r.d.pauses))) notes.push(`paused after ${r.d.pauses} of ${r.d.teamGates} teammate-gated stages`);
+    // a prompt the player could not have clicked where it sat: covered by something, scrolled out of view or off screen
+    if (r.blocked.length) notes.push(`${r.blocked.length} prompt(s) were not clickable on screen: ${[...new Set(r.blocked)].slice(0, 4).join(' | ')}`);
     const ok = r.d && !r.err && !errors.length && !notes.length && r.d.missing.length === 0 && r.d.prof === prof && r.d.scen === scen;
     if (!ok) failed++;
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${tag} stages ${r.d ? r.d.stages + '/' + r.d.plan : '?'}  score ${r.d ? r.d.score : '?'}  incident ${r.d && r.d.boss ? (r.d.boss.won ? 'held' : r.d.boss.rolledBack ? 'rolled back' : 'breached') + ' (' + r.d.boss.cause + ')' : '?'}  jumps ${r.d ? r.d.loops : '?'}  pauses ${r.d ? r.d.pauses + '/' + r.d.teamGates : '?'}${[r.err, ...errors, ...notes].filter(Boolean).map(x => '\n     ' + x).join('')}`);
@@ -112,5 +116,5 @@ async function run({ scen, prof, auto, role }) {
 // a few pages at a time keeps the run short without starving timers
 for (let k = 0; k < runs.length; k += 3) await Promise.all(runs.slice(k, k + 3).map(run));
 await browser.close();
-console.log(`${n - failed}/${n} runs reached the debrief cleanly`);
+console.log(`${FILE}: ${n - failed}/${n} runs reached the debrief cleanly`);
 process.exit(failed ? 1 : 0);

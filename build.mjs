@@ -1,22 +1,38 @@
-// Builds the single-file game: v3.html = src/game.html + src/scenarios/*.js + bundled three.js office + embedded GLB.
+// Builds the two single-file games from one engine and one set of scenarios:
+//   v3.html = src/game.html     the office edition: bundled three.js office + embedded GLB
+//   v4.html = src/desktop.html  the retro desktop edition: no 3D, so it is a fraction of the size
 // Usage: node build.mjs          (run `npm run assets` first if blender/build_assets.py changed)
 import { build } from 'esbuild';
 import fs from 'node:fs';
 
-const out = await build({
+const safe = s => s.replace(/<\/script/gi, '<\\/script');
+// Scenarios are plain script fragments that register themselves on SCENARIOS; the game lists them in SCEN_ORDER.
+const scenarios = fs.readdirSync('src/scenarios').filter(f => f.endsWith('.js')).sort()
+  .map(f => safe(fs.readFileSync('src/scenarios/' + f, 'utf8'))).join('\n');
+const engine = safe(fs.readFileSync('src/engine.js', 'utf8'));
+
+function assemble(shell, out, parts) {
+  let html = fs.readFileSync(shell, 'utf8');
+  // the engine goes in first: it carries the scenarios token
+  for (const [token, value] of [['/*__ENGINE__*/', engine], ['/*__SCENARIOS__*/', scenarios], ...parts]) {
+    if (!html.includes(token)) throw new Error(`${shell}: missing token ${token}`);
+    html = html.replace(token, () => value);
+  }
+  fs.writeFileSync(out, html);
+  return html.length;
+}
+
+const office = await build({
   entryPoints: ['src/office/index.js'],
   bundle: true, format: 'iife', minify: !process.argv.includes('--dev'),
   target: 'es2020', write: false, legalComments: 'inline',   // keep three.js's MIT notice in the bundle
 });
-const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+const js = safe(office.outputFiles[0].text);
 const glb = fs.readFileSync('blender/out/office.glb').toString('base64');
-// Scenarios are plain script fragments that register themselves on SCENARIOS; the game lists them in SCEN_ORDER.
-const scenarios = fs.readdirSync('src/scenarios').filter(f => f.endsWith('.js')).sort()
-  .map(f => fs.readFileSync('src/scenarios/' + f, 'utf8').replace(/<\/script/gi, '<\\/script')).join('\n');
-let html = fs.readFileSync('src/game.html', 'utf8');
-for (const [token, value] of [['/*__SCENARIOS__*/', scenarios], ['/*__OFFICE_JS__*/', js], ['__OFFICE_GLB__', glb]]) {
-  if (!html.includes(token)) throw new Error('missing token ' + token);
-  html = html.replace(token, () => value);
+
+const v3 = assemble('src/game.html', 'v3.html', [['/*__OFFICE_JS__*/', js], ['__OFFICE_GLB__', glb]]);
+console.log(`v3.html ${(v3 / 1e6).toFixed(2)} MB  (office js ${(js.length / 1e3).toFixed(0)} kB, glb ${(glb.length / 1e6).toFixed(2)} MB base64)`);
+if (fs.existsSync('src/desktop.html')) {
+  const v4 = assemble('src/desktop.html', 'v4.html', []);
+  console.log(`v4.html ${(v4 / 1e6).toFixed(2)} MB  (retro desktop, no 3D)`);
 }
-fs.writeFileSync('v3.html', html);
-console.log(`v3.html ${(html.length / 1e6).toFixed(2)} MB  (office js ${(js.length / 1e3).toFixed(0)} kB, glb ${(glb.length / 1e6).toFixed(2)} MB base64)`);

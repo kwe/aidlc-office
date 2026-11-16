@@ -6,7 +6,8 @@
     "assets": "/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python blender/build_assets.py",
     "build": "node build.mjs && node tools/check.mjs",
     "screenshots": "node tools/screenshots.mjs",
-    "playtest": "node tools/playtest.mjs"
+    "playtest": "node tools/playtest.mjs",
+    "playtest:retro": "node tools/playtest.mjs --file=v4.html"
   },
   "devDependencies": {
     "esbuild": "^0.25.12",

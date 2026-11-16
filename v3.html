@@ -4828,7 +4828,7 @@ const initStages=(REC,o)=>({
   pre:[['SYS',`<code>WORKSPACE_SCAFFOLDED</code>: record dir <code>intents/${REC.split('/').slice(-2,-1)[0]}/</code> created`]]},
  '0.2':{files:[],pre:[['SYS',`<code>WORKSPACE_SCANNED</code>: ${o.ws}`]]},
  '0.3':{files:[{p:REC+'aidlc-state.md',opt:1,b:()=>H('Workflow state')+T(['Field','Value'],[['Intent',o.intent],['Scope',S.prof],['Workspace','brownfield'],['Current stage',S.cur||'—'],['Depth',scope().depth],['Guard Policy',scope().guard],['Collaborators',scope().collab?'on':'off'],['Sensors',scope().sensors?'on':'off'],['Plan approval',scope().planApproval?'on':'off'],['Walking skeleton',scope().skeleton?'on':'off']])},
-        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. See the Audit tab for the live view.')}],
+        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. '+TXT.auditWhere)}],
   pre:[['SYS','<code>WORKSPACE_INITIALISED</code> · <code>WORKFLOW_STARTED</code>']]},
 });
 /* Scenario: the retry double-count. A production bug in what Network Velocity shipped.
@@ -6374,7 +6374,7 @@ const stages={
 },
 '0.3':{
  files:[{p:REC+'aidlc-state.md',opt:1,b:()=>H('Workflow state')+T(['Field','Value'],[['Intent','network-velocity (ID-VEL-02)'],['Scope',S.prof],['Workspace','brownfield'],['Current stage',S.cur||'—'],['Depth',scope().depth],['Guard Policy',scope().guard],['Collaborators',scope().collab?'on':'off'],['Sensors',scope().sensors?'on':'off'],['Plan approval',scope().planApproval?'on':'off'],['Walking skeleton',scope().skeleton?'on':'off']])},
-        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. See the Audit tab for the live view.')}],
+        {p:REC+'audit/devbox-a1f3.md',opt:1,b:()=>P('Append-only audit shard for this clone. '+TXT.auditWhere)}],
  pre:[['SYS','<code>WORKSPACE_INITIALISED</code> · <code>WORKFLOW_STARTED</code>']]
 },
 /* ===== 1 IDEATION ===== */
@@ -6942,6 +6942,14 @@ const LET='ABCDEFG';
 const el=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e};
 const fname=p=>p.split('/').pop();
 const RM=matchMedia('(prefers-reduced-motion: reduce)');
+/* The page around the engine (the "shell") may set window.SKIN before this script runs, to take over the few places
+   where the engine touches layout: tab(), files(), openFile(), reset(), net (a stand-in for the 3D office) and txt (wording). */
+const SKIN=window.SKIN||{};
+const TXT=Object.assign({
+  predict:'Which agent leads this stage? Pick a card, press a number, or click the bot in the office.',
+  pauseFiles:'What this stage wrote (the Artifacts tab keeps everything):',
+  pauseOff:'Nothing moves until you continue. The ⏸ button in the top bar turns this pause off.',
+  auditWhere:'See the Audit tab for the live view.'},SKIN.txt);
 let PREFS={};try{PREFS=JSON.parse(localStorage.getItem('aidlc-v2-prefs')||'{}')}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem('aidlc-v2-prefs',JSON.stringify(PREFS))}catch(e){}};
 
@@ -7028,7 +7036,7 @@ async function say(w,text,opt={}){
   const f=$('#feed'),i=who(w);
   if(!i.sys&&!i.h&&S.motion){const ty=el('div','typing','<i></i><i></i><i></i>');f.appendChild(ty);f.scrollTop=f.scrollHeight;NET.pulse(w);
     try{await wait(Math.min(1100,280+text.length*7))}finally{ty.remove()}}
-  const m=el('div','msg'+(i.sys?' sys':'')+(opt.ask?' ask':''),`<div class="av${i.h?' h':''}" style="--ac:${i.c}">${i.av}</div><div class="bd"><span class="nm" style="--ac:${i.c}">${i.nm}</span><div class="tx">${text}</div></div>`);
+  const m=el('div','msg'+(i.sys?' sys':'')+(opt.ask?' ask':'')+(w==='@'+S.role?' me':''),`<div class="av${i.h?' h':''}" style="--ac:${i.c}">${i.av}</div><div class="bd"><span class="nm" style="--ac:${i.c}">${i.nm}</span><div class="tx">${text}</div></div>`);
   m.style.setProperty('--ac',i.c);
   f.appendChild(m);while(f.children.length>160)f.firstChild.remove();f.scrollTop=f.scrollHeight;
   if(!i.sys)NET.speak(w,text);
@@ -7071,6 +7079,7 @@ function addFile(f,stId){
 function reviseFiles(stId){Object.values(S.files).filter(f=>f.st===stId&&!f.opt).forEach(f=>{f.rev++;f.upd=true;audit('ARTIFACT_UPDATED',`${fname(f.p)} → rev ${f.rev}`)});renderTree();if(S.viewing&&S.files[S.viewing]?.st===stId)openFile(S.viewing,true)}
 function dirLabel(p){let d=p.slice(0,p.lastIndexOf('/')+1);if(d.startsWith(REC))return'…/'+REC.split('/').slice(-2,-1)[0]+'/'+d.slice(REC.length);return d.replace('aidlc/spaces/identity/','aidlc/spaces/identity/')}
 function renderTree(){
+  if(SKIN.files){SKIN.files();return}
   const tr=$('#tree');if(!tr)return;
   const fs=Object.values(S.files).sort((a,b)=>a.ord-b.ord);const groups={};
   fs.forEach(f=>{const d=dirLabel(f.p);(groups[d]=groups[d]||[]).push(f)});
@@ -7081,15 +7090,15 @@ function renderTree(){
 function openFile(p,keepTab){
   const f=S.files[p];if(!f)return;
   f.seen=true;f.isNew=false;S.viewing=p;
-  if(!keepTab)tab('files');
-  $('#viewer').innerHTML=`<div class="vp">${p}${f.rev>1?` · <span class="wa">rev ${f.rev}</span>`:''}</div><div class="doc">${f.b()}</div>`;
+  if(SKIN.openFile)SKIN.openFile(f,keepTab);
+  else{if(!keepTab)tab('files');$('#viewer').innerHTML=`<div class="vp">${p}${f.rev>1?` · <span class="wa">rev ${f.rev}</span>`:''}</div><div class="doc">${f.b()}</div>`}
   renderTree();
   $$(`.fl[data-p="${CSS.escape(p)}"]`).forEach(b=>b.classList.add('seen'));
   AUD.blip(880,.03);
 }
 
 /* ---------- tabs ---------- */
-function tab(n){['comms','files','audit','intel'].forEach(k=>{$('#t-'+k).setAttribute('aria-selected',k===n);$('#p-'+k).hidden=k!==n})}
+function tab(n){if(SKIN.tab){SKIN.tab(n);return}['comms','files','audit','intel'].forEach(k=>{$('#t-'+k).setAttribute('aria-selected',k===n);$('#p-'+k).hidden=k!==n})}
 
 /* ---------- console ---------- */
 let ACTIVE=null; // {opts:[], approve, request}
@@ -7119,9 +7128,9 @@ function stagePause(st){
   setTurn('me',S.role,`${p.n} approved. Open anything you want to read, then continue. <kbd>Enter</kbd>`);
   const c=card('mine',`<div class="ck"><span>Stage complete · ${st.id}</span><span class="owner" style="--oc:var(--${st.own})">${p.n} approved</span></div>
     <div class="q">${st.n} is done. Take a look before the team moves on.</div>
-    ${files.length?`<span class="hint">What this stage wrote (the Artifacts tab keeps everything):</span><div class="unread">${files.map(f=>`<button class="fl${f.seen?' seen':''}" type="button" data-p="${f.p}">${fname(f.p)}${f.rev>1?' r'+f.rev:''}</button>`).join('')}</div>`:''}
+    ${files.length?`<span class="hint">${TXT.pauseFiles}</span><div class="unread">${files.map(f=>`<button class="fl${f.seen?' seen':''}" type="button" data-p="${f.p}">${fname(f.p)}${f.rev>1?' r'+f.rev:''}</button>`).join('')}</div>`:''}
     <div class="btns"><button class="btn primary" type="button" data-a="cont">Continue${nx?` to ${nx} ${ST[nx].n}`:''} → <kbd>Enter</kbd></button></div>
-    <span class="hint">Nothing moves until you continue. The ⏸ button in the top bar turns this pause off.</span>`);
+    <span class="hint">${TXT.pauseOff}</span>`);
   c.querySelectorAll('.fl').forEach(b=>b.onclick=()=>openFile(b.dataset.p));
   return new Promise((res,rej)=>{
     const b=c.querySelector('[data-a="cont"]');
@@ -7160,7 +7169,7 @@ function renderIntel(){
 
 /* ---------- prediction ---------- */
 async function predict(st){
-  setStep(0);setTurn('me',S.role,'Which agent leads this stage? Pick a card, press a number, or click the bot in the office.');
+  setStep(0);setTurn('me',S.role,TXT.predict);
   const opts=shuffle([st.lead,...st.alt]);
   const c=card('mine',`<div class="ck"><span>Who leads? · predict</span><span class="mono">+10</span></div><div class="q">Which agent leads <b>${st.n}</b>?</div><div class="apick">${opts.map((a,i)=>`<button class="ag" type="button" data-a="${a}" style="--ac:${AGENTS[a].c}"><span class="av">${a}</span><span>${AGENTS[a].n}<small>${AGENTS[a].d}</small></span><kbd style="margin-left:auto">${i+1}</kbd></button>`).join('')}</div>`);
   const btns=[...c.querySelectorAll('.ag')];
@@ -7640,6 +7649,7 @@ const NET=(()=>{
       phases:PHASES.map((p,i)=>({n:p.n,c:p.c,pips:ALL.filter(id=>ST[id].ph===i).map(id=>S.cur===id?'now':S.done.has(id)?'done':S.plan.includes(id)?'in':'skip')}))};
   }
   function start(){
+    if(SKIN.net){names.forEach(n=>{if(SKIN.net[n])api[n]=SKIN.net[n]});return}   // a shell without the 3D office shows the same events its own way
     if(!window.Office3D){console.warn('office bundle missing');return}
     try{
       off=window.Office3D.create({canvas:$('#net'),glb:glb(),agents:AGENTS,order:AG_ORDER,people:PEOPLE,roles:ROLE_ORDER,phases:PHASES,sensors:SENSORS,
@@ -7676,7 +7686,7 @@ const NET=(()=>{
   }
   const api={...stub,start,get off(){return off},
     hit:(x,y)=>off?off.hit(x,y):null,
-    pick(keys,cb){picker=keys?{keys,cb}:null;off&&off.setCandidates(keys||null)},
+    pick(keys,cb){picker=keys?{keys,cb}:null;off&&off.setCandidates(keys||null);SKIN.net&&SKIN.net.pick&&SKIN.net.pick(keys||null,cb)},
   };
   return api;
 })();
@@ -7821,11 +7831,11 @@ async function startMission(role,prof,skipBoot,scen=PICK.scen){
   useScenario(scen);if(!SCN.scopes.includes(prof))prof=SCN.best;
   document.body.classList.remove('bossing');S=freshState(role,prof,SCN.id);S.motion=PREFS.motion??!RM.matches;
   ['#con','#feed','#tree','#viewer','#audit','#ticker','#stagecard','#toasts'].forEach(s=>$(s).innerHTML='');
-  ['#boss','#debrief','#cine','#tour'].forEach(s=>$(s).hidden=true);
+  ['#boss','#debrief','#cine','#tour'].forEach(s=>$(s).hidden=true);SKIN.reset&&SKIN.reset();
   document.body.dataset.role=role;
   if(!skipBoot){if(!await boot())return}else{$('#title').hidden=true;$('#boot').hidden=true}
   $('#app').hidden=false;
-  $('#conTitle').textContent=`${PEOPLE[role].n}'s console · ${PEOPLE[role].t}`;
+  $('#conTitle').textContent=TXT.conTitle?TXT.conTitle(PEOPLE[role]):`${PEOPLE[role].n}'s console · ${PEOPLE[role].t}`;
   $('#cmdline').textContent=PROFILES[prof].cmd;$('#intentLine').textContent=`intent · ${SCN.intent} · ${PROFILES[prof].n.toLowerCase()} scope`;
   $('#speedBtn').textContent=S.speed+'×';tab('comms');
   NET.setMode('game');renderMeters();renderTrack();renderIntel();AUD.ambient(true);AUD.mood('calm');
@@ -7833,7 +7843,7 @@ async function startMission(role,prof,skipBoot,scen=PICK.scen){
 }
 function toTitle(){
   S.gen++;skipWait();ACTIVE=null;PAUSE=null;BOSS.stop();document.body.classList.remove('bossing');NET.pick(null);boardStatus('');AUD.alarm(false);AUD.ambient(false);NET.alert(false);
-  ['#app','#boss','#debrief','#cine','#boot'].forEach(s=>$(s).hidden=true);$('#toasts').innerHTML='';
+  ['#app','#boss','#debrief','#cine','#boot'].forEach(s=>$(s).hidden=true);$('#toasts').innerHTML='';SKIN.reset&&SKIN.reset();
   renderTitle();$('#title').classList.remove('attract');$('#title').hidden=false;$('#title').scrollTop=0;NET.setMode('title');
 }
 
@@ -8159,7 +8169,7 @@ function initControls(){
     if(TOUR.active){if(k==='Escape'){e.preventDefault();TOUR.end()}else if(k==='ArrowRight'){e.preventDefault();TOUR.next()}else if(k==='ArrowLeft'){e.preventDefault();TOUR.back()}return}
     if(!$('#boot').hidden&&(k===' '||k==='Enter'||k==='Escape')){bootFast=true;e.preventDefault();return}
     if(ACTIVE){
-      if(k==='Enter'&&ACTIVE.cont&&tn!=='A'&&(tn!=='BUTTON'||tg.closest('#con,#p-files'))){e.preventDefault();if(!e.repeat)ACTIVE.cont.click();return}
+      if(k==='Enter'&&ACTIVE.cont&&tn!=='A'&&(tn!=='BUTTON'||tg.closest('#con,#p-files,.enterok'))){e.preventDefault();if(!e.repeat)ACTIVE.cont.click();return}
       if(/^[1-7]$/.test(k)&&ACTIVE.opts&&ACTIVE.opts[+k-1]){e.preventDefault();ACTIVE.opts[+k-1].click();return}
       if(k==='a'&&ACTIVE.approve){e.preventDefault();ACTIVE.approve.click();return}
       if(k==='r'&&ACTIVE.request){e.preventDefault();ACTIVE.request.focus();return}
@@ -8185,6 +8195,12 @@ function autoplay(){
   $('#title').classList.remove('attract');
   const scen=SCENARIOS[Q.get('scen')]?Q.get('scen'):'velocity';PICK.scen=scen;
   startMission(PEOPLE[Q.get('role')]?Q.get('role'):'po',PROFILES[Q.get('prof')]?Q.get('prof'):SCENARIOS[scen].best,true,scen);
+  /* .click() works on a button the player could never reach (covered by a window, in a closed one, off screen).
+     So wait briefly for the prompt to be clickable where it sits, and record it if it never is.
+     The scroll is repeated here because the engine's own runs on an animation frame, which a background test page never gets. */
+  let hidN=0;const blocked=window.__blocked=[];
+  const hit=b=>{const r=b.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !!e&&(e===b||b.contains(e))};
+  const ready=b=>{if(hit(b)){hidN=0;return true}b.scrollIntoView({block:'nearest'});if(++hidN<=25)return false;hidN=0;blocked.push(`${S.cur||'-'}: ${b.textContent.trim().replace(/\s+/g,' ').slice(0,40)}`);return true};
   const iv=setInterval(()=>{
     if(window.__done){clearInterval(iv);return}
     if(window.__pauseIf&&window.__pauseIf()){clearInterval(iv);S.speed=.02;window.__paused=true;return}   // tools/screenshots.mjs freezes a moment this way
@@ -8194,11 +8210,12 @@ function autoplay(){
       const go=$('#bossGo')||$('#bossDone');if(go){go.click();return}
       $$('#acts .act:not(.locked):not(.casting)').forEach(b=>{if(b.dataset.id!=='rollback'||m==='bad')b.click()});return}
     if(!ACTIVE)return;
-    if(ACTIVE.cont){ACTIVE.cont.click();return}
+    if(ACTIVE.cont){if(ready(ACTIVE.cont))ACTIVE.cont.click();return}
     if(ACTIVE.opts){const o=ACTIVE.opts.filter(b=>!b.disabled);if(!o.length)return;
       const dec=o.filter(b=>b.dataset.i!==undefined);
-      if(dec.length){const want=m==='1'?0:m==='hot'?(S.cur==='2.6'?1:0):Math.max(...dec.map(b=>+b.dataset.i));(dec.find(b=>+b.dataset.i===want)||dec[0]).click()}else o[m==='bad'?o.length-1:0].click();return}
-    if(ACTIVE.approve){const c=ACTIVE.approve.closest('.card');
+      let t;if(dec.length){const want=m==='1'?0:m==='hot'?(S.cur==='2.6'?1:0):Math.max(...dec.map(b=>+b.dataset.i));t=dec.find(b=>+b.dataset.i===want)||dec[0]}else t=o[m==='bad'?o.length-1:0];
+      if(ready(t))t.click();return}
+    if(ACTIVE.approve){if(!ready(ACTIVE.approve))return;const c=ACTIVE.approve.closest('.card');
       if(c){if(m!=='bad')c.querySelectorAll('.fl:not(.seen)').forEach(b=>b.click());const fx=c.querySelector('.chip.fix');if(fx&&m==='fix'){fx.click();return}
         const pk=c.querySelector('[data-a="park"]');if(pk&&m==='hot'&&!window.__parked){window.__parked=1;pk.click();return}}
       ACTIVE.approve.click()}
@@ -8206,6 +8223,7 @@ function autoplay(){
 }
 function boot0(){init();autoplay();const Q=new URLSearchParams(location.search);if(Q.get('tour'))TOUR.start(+Q.get('tourstep')||0)}   // ?tour=1&tourstep=4 opens the tour directly
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot0);else boot0();
+
 </script>
 </body>
 </html>

@@ -1,7 +1,8 @@
-// Captures the README screenshots from v3.html with a locally installed Chrome.
+// Captures the README screenshots from v3.html (the office) and v4.html (the retro desktop) with a locally installed Chrome.
 // Usage: npm run screenshots            (writes docs/screenshots/*.jpg)
+//        npm run screenshots -- gate retro-gate    (only these)
 //        CHROME=/path/to/chrome npm run screenshots
-// It opens v3.html straight from disk (file://), plays it with the autoplay harness, freezes on a moment and shoots.
+// It opens the built game straight from disk (file://), plays it with the autoplay harness, freezes on a moment and shoots.
 import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = 'docs/screenshots';
-const GAME = pathToFileURL(path.resolve('v3.html')).href;
+const url = f => pathToFileURL(path.resolve(f)).href;
 const only = process.argv.slice(2);
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -41,6 +42,22 @@ const SHOTS = [
     pauseIf: () => S.cur === '3.2' && NET.off._debug.bots.ARC.role === 'lead' && !!document.querySelector('#con .opts') },
   { name: 'debrief', query: '?auto=fix&role=eng&prof=feature&speed=80&rate=20', wait: 5200,   // let the last toasts clear
     until: () => !!window.__done && !document.querySelector('#debrief').hidden },
+
+  // ---- the retro desktop edition (v4.html)
+  { name: 'retro-home', game: 'v4.html', query: '?nosplash=1', wait: 600 },
+  { name: 'retro-setup', game: 'v4.html', query: '?nosplash=1', wait: 600,
+    start: () => { document.querySelector('#title').classList.remove('attract'); pickTitle('scen', 'bug'); } },
+  { name: 'retro-predict', game: 'v4.html', query: '?auto=bad&role=eng&prof=enterprise&speed=60', wait: 900,
+    pauseIf: () => S.cur === '2.4' && !!ACTIVE && !!ACTIVE.opts && !!ACTIVE.opts[0].dataset.a },
+  { name: 'retro-gate', game: 'v4.html', query: '?auto=1&role=po&prof=feature&speed=60', wait: 900,
+    pauseIf: () => S.cur === '2.3' && !!ACTIVE && !!ACTIVE.approve,
+    after: () => {   // leave one editor open: the artifact this gate is about
+      document.querySelector('#con .card.mine .fl').click();
+      [...document.querySelectorAll('.win.ed:not(.active)')].forEach(w => w.querySelector('.cb').click());
+      document.querySelector('#toasts').innerHTML = ''; } },
+  { name: 'retro-incident', game: 'v4.html', query: '?auto=1&role=ops&prof=feature&speed=60&hold=boss', wait: 3200,
+    until: () => !!document.querySelector('#acts'),
+    after: () => { document.querySelector('#toasts').innerHTML = ''; document.querySelector('#acts [data-id=investigate]').click(); } },
 ];
 
 const browser = await puppeteer.launch({
@@ -56,8 +73,8 @@ for (const s of SHOTS) {
   page.on('pageerror', e => errors.push(String(e)));
   try {
     if (s.pauseIf) await page.evaluateOnNewDocument(`window.__pauseIf=()=>{try{return (${s.pauseIf.toString()})()}catch(e){return false}}`);
-    await page.goto(GAME + s.query, { waitUntil: 'load' });
-    await page.waitForFunction(() => typeof NET !== 'undefined' && NET.off && NET.off.ready, { timeout: 30000 });
+    await page.goto(url(s.game || 'v3.html') + s.query, { waitUntil: 'load' });
+    if (!s.game) await page.waitForFunction(() => typeof NET !== 'undefined' && NET.off && NET.off.ready, { timeout: 30000 });   // the office has to load its 3D scene
     if (s.before) await page.evaluate(s.before);
     if (s.start) await page.evaluate(s.start);
     if (s.pauseIf) await page.waitForFunction(() => window.__paused === true, { timeout: 120000, polling: 100 });
